@@ -135,7 +135,7 @@ class JTCClient(rclpy.node.Node):
             #time.sleep(1) # @notes we reduced this from 5 to 1
             self.execute_next_trajectory()
 
-    def goal_from_joint_position(self, joint_positions, units = 'radians', velocities = [0.0,0.0,0.0,0.0,0.0,0.0], time_from_start = 5):
+    def move_to_joint_position(self, joint_positions, units = 'radians', velocities = [0.0,0.0,0.0,0.0,0.0,0.0], time_from_start = 5):
         goal = JointTrajectory()
         goal.joint_names = self.joints
         point = JointTrajectoryPoint()
