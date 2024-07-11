@@ -9,7 +9,7 @@ from ik_solver.ur_kinematics import URKinematics
 from builtin_interfaces.msg import Duration
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 from control_msgs.action import FollowJointTrajectory
-
+from sensor_msgs.msg import JointState
 
 class MyException(Exception):
     pass
@@ -48,6 +48,7 @@ class MyUR3e(rclpy.node.Node):
         self._get_result_future = None
         self.done = True
         self.id = 0
+        self.joint_states = JointStates()
 
     @staticmethod
     def pointdeg2rad(point):
@@ -58,17 +59,21 @@ class MyUR3e(rclpy.node.Node):
         return point2
 
     def move_global(self, cords):
+        current_pose = self.joint_states.get()["position"]
+        self.get_logger().debug(f"Current Pose: {current_pose}")
+        
         if len(cords) == 6:
             r = R.from_euler("xyz", cords[3:6], degrees=True)
             quat = r.as_quat(scalar_first=True).tolist()
             cords = cords[0:3] + quat
         joint_positions = self.ik_solver.inverse(
-            cords, False
+            cords, False, q_guess=current_pose 
         )  # missing q_guess=joint_angles_rad could be essential
-        if joint_positions.any():
-            self.move_joints(joint_positions.tolist())
-        else:
+        self.get_logger().debug(f"New Pose: {joint_positions}")
+        if joint_positions is None:
             raise MyException("IK solution not found")
+        else:
+            self.move_joints(joint_positions.tolist())
 
     def move_joints(self, joint_positions):
         self.get_logger().debug(f"Moving to joint angles {joint_positions}")
@@ -149,3 +154,37 @@ class MyUR3e(rclpy.node.Node):
             return "PATH_TOLERANCE_VIOLATED"
         if error_code == FollowJointTrajectory.Result.GOAL_TOLERANCE_VIOLATED:
             return "GOAL_TOLERANCE_VIOLATED"
+
+
+class JointStates(rclpy.node.Node):
+    """
+    Subscribe to the joint_states topic
+    """
+
+    def __init__(self):
+        super().__init__('SubscriberNode')
+        self.subscription = self.create_subscription(JointState,'joint_states',self.listener_callback,10)
+        self.states = None
+        self.done = False
+
+    def listener_callback(self, msg):
+        data = {}
+        data["name"] = [msg.name[5]]+msg.name[0:5]
+        data["position"] = [msg.position[5]]+msg.position[0:5].tolist()
+        data["velocity"] = [msg.velocity[5]]+msg.velocity[0:5].tolist()
+        data["effort"] = [msg.effort[5]]+msg.effort[0:5].tolist()
+        
+        self.states = data
+        self.done = True
+
+    def get(self):
+        self.wait(self)
+        self.done = False
+        return self.states
+
+    def wait(self, client):
+        rclpy.spin_once(client)
+        while not client.done:
+            time.sleep(0.1)
+            rclpy.spin_once(client)
+            self.get_logger().debug(f"Waiting for joint_states_client")
