@@ -58,7 +58,7 @@ class MyUR3e(rclpy.node.Node):
             point2.append(math.radians(point[i]))
         return point2
 
-    def move_global(self, cords):
+    def move_global(self, cords,time=[5,0]):
         current_pose = self.joint_states.get()["position"]
         self.get_logger().debug(f"Current Pose: {current_pose}")
         
@@ -73,11 +73,11 @@ class MyUR3e(rclpy.node.Node):
         if joint_positions is None:
             raise MyException("IK solution not found")
         else:
-            self.move_joints(joint_positions.tolist())
+            self.move_joints(joint_positions.tolist(),time=time)
 
-    def move_joints(self, joint_positions):
+    def move_joints(self, joint_positions, time=[5,0]):
         self.get_logger().debug(f"Moving to joint angles {joint_positions}")
-        goal = self.make_goal(joint_positions)
+        goal = self.make_goal(joint_positions,time=time)
         self.execute_goal(goal)
         self.wait(self)
 
@@ -86,8 +86,8 @@ class MyUR3e(rclpy.node.Node):
         self,
         joint_positions,
         units="radians",
-        velocities=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-        time_from_start=5,
+        velocities=[2.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+        time=[0,300000000],
     ):
         goal = JointTrajectory()
         goal.joint_names = self.joints
@@ -100,7 +100,7 @@ class MyUR3e(rclpy.node.Node):
             point.positions = self.pointdeg2rad(joint_positions)
 
         point.velocities = velocities
-        point.time_from_start = Duration(sec=time_from_start, nanosec=0)
+        point.time_from_start = Duration(sec=time[0], nanosec=time[1])
         goal.points.append(point)
         return goal
 
@@ -137,7 +137,6 @@ class MyUR3e(rclpy.node.Node):
     def wait(self, client):
         rclpy.spin_once(client)
         while not client.done:
-            time.sleep(0.1)
             rclpy.spin_once(client)
 
     @staticmethod
@@ -185,6 +184,5 @@ class JointStates(rclpy.node.Node):
     def wait(self, client):
         rclpy.spin_once(client)
         while not client.done:
-            time.sleep(0.1)
             rclpy.spin_once(client)
             self.get_logger().debug(f"Waiting for joint_states_client")
