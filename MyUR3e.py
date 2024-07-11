@@ -1,16 +1,25 @@
 import time
 import math
+import numpy as np
+from scipy.spatial.transform import Rotation as R
+
 import rclpy
 from rclpy.action import ActionClient
-
+from ik_solver.ur_kinematics import URKinematics
 from builtin_interfaces.msg import Duration
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 from control_msgs.action import FollowJointTrajectory
 
 
+class MyException(Exception):
+    pass
+
+
 class MyUR3e(rclpy.node.Node):
     def __init__(self):
-        super().__init__("remote_control")
+        super().__init__("remote_control_client")
+        self.get_logger().debug("Initializing MyUR3e...")
+
         self.declare_parameter("controller_name", "scaled_joint_trajectory_controller")
         self.declare_parameter(
             "joints",
@@ -31,8 +40,14 @@ class MyUR3e(rclpy.node.Node):
             raise Exception('"joints" parameter is required')
 
         self._action_client = ActionClient(self, FollowJointTrajectory, controller_name)
-        print(f"Waiting for action server on {controller_name}")
+        self.get_logger().debug(f"Waiting for action server on {controller_name}")
         self._action_client.wait_for_server()
+
+        self.ik_solver = URKinematics("ur3e")
+        self._send_goal_future = None
+        self._get_result_future = None
+        self.done = True
+        self.id = 0
 
     @staticmethod
     def pointdeg2rad(point):
@@ -40,23 +55,39 @@ class MyUR3e(rclpy.node.Node):
         # point should be a list of 6 floats
         for i in range(len(point)):
             point2.append(math.radians(point[i]))
-        print(point2)
         return point2
 
-    def move_global(self,cords):
-        pass
+    def move_global(self, cords):
+        if len(cords) == 6:
+            r = R.from_euler("xyz", cords[3:6], degrees=True)
+            quat = r.as_quat(scalar_first=True).tolist()
+            cords = cords[0:3] + quat
+        joint_positions = self.ik_solver.inverse(
+            cords, False
+        )  # missing q_guess=joint_angles_rad could be essential
+        if joint_positions.any():
+            self.move_joints(joint_positions.tolist())
+        else:
+            raise MyException("IK solution not found")
 
     def move_joints(self, joint_positions):
+        self.get_logger().debug(f"Moving to joint angles {joint_positions}")
         goal = self.make_goal(joint_positions)
         self.execute_goal(goal)
+        self.wait(self)
 
-        pass
-
-    #@staticmethod # not used because goal.joint_names relies on instance's self.joints
-    def make_goal(self, joint_positions, units = 'radians', velocities = [0.0,0.0,0.0,0.0,0.0,0.0], time_from_start = 5):
+    # @staticmethod # not used because goal.joint_names relies on instance's self.joints
+    def make_goal(
+        self,
+        joint_positions,
+        units="radians",
+        velocities=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+        time_from_start=5,
+    ):
         goal = JointTrajectory()
         goal.joint_names = self.joints
         point = JointTrajectoryPoint()
+        self.id += 1
 
         if units == "radians":
             point.positions = joint_positions
@@ -64,32 +95,45 @@ class MyUR3e(rclpy.node.Node):
             point.positions = self.pointdeg2rad(joint_positions)
 
         point.velocities = velocities
-        point.time_from_start = Duration(sec = time_from_start, nanosec = 0)
+        point.time_from_start = Duration(sec=time_from_start, nanosec=0)
         goal.points.append(point)
         return goal
 
     def execute_goal(self, goal):
+        self.get_logger().info(f"Goal #{self.id}: Executing")
+        self.done = False  # this was .static ??? could be error
+
         this_goal = FollowJointTrajectory.Goal()
         this_goal.trajectory = goal
+
+        self._action_client.wait_for_server()  # this was missing
         self._send_goal_future = self._action_client.send_goal_async(this_goal)
-        print("Sent goal")
+        self.get_logger().debug(f"Sent goal #{self.id}")
         self._send_goal_future.add_done_callback(self.goal_response_callback)
 
-    def goal_response_callback(self,future):
+    def goal_response_callback(self, future):
         goal_handle = future.result()
         if not goal_handle.accepted:
-            print("Goal rejected :(")
+            self.get_logger().info(f"Goal #{self.id} rejected :(")
             return
-        else:
-            print("Goal accepted :)")
+        self.get_logger().debug(f"Goal #{self.id} accepted :)")
         self._get_result_future = goal_handle.get_result_async()
         self._get_result_future.add_done_callback(self.get_result_callback)
 
     def get_result_callback(self, future):
         result = future.result().result
-        print(f"Done with result: {self.error_code_to_str(result.error_code)}")
+        self.get_logger().debug(
+            f"Done with result from #{self.id}: {self.error_code_to_str(result.error_code)}"
+        )
         if result.error_code == FollowJointTrajectory.Result.SUCCESSFUL:
-            print("Goal finished")
+            self.done = True
+            self.get_logger().info(f"Goal #{self.id}: Completed")
+
+    def wait(self, client):
+        rclpy.spin_once(client)
+        while not client.done:
+            time.sleep(0.1)
+            rclpy.spin_once(client)
 
     @staticmethod
     def error_code_to_str(error_code):
