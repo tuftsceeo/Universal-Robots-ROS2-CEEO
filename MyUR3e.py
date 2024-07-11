@@ -58,7 +58,13 @@ class MyUR3e(rclpy.node.Node):
             point2.append(math.radians(point[i]))
         return point2
 
-    def move_global(self, cords,time=[5,0]):
+    def move_global(
+        self,
+        cords,
+        units="radians",
+        velocities=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+        time=[5,0],
+    ):
         current_pose = self.joint_states.get()["position"]
         self.get_logger().debug(f"Current Pose: {current_pose}")
         
@@ -73,11 +79,17 @@ class MyUR3e(rclpy.node.Node):
         if joint_positions is None:
             raise MyException("IK solution not found")
         else:
-            self.move_joints(joint_positions.tolist(),time=time)
+            self.move_joints(joint_positions.tolist(), units=units, velocities=velocities, time=time)
 
-    def move_joints(self, joint_positions, time=[5,0]):
+    def move_joints(
+        self,
+        joint_positions,
+        units="radians",
+        velocities=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+        time=[5,0],
+    ):
         self.get_logger().debug(f"Moving to joint angles {joint_positions}")
-        goal = self.make_goal(joint_positions,time=time)
+        goal = self.make_goal(joint_positions, units=units, velocities=velocities, time=time)
         self.execute_goal(goal)
         self.wait(self)
 
@@ -86,8 +98,8 @@ class MyUR3e(rclpy.node.Node):
         self,
         joint_positions,
         units="radians",
-        velocities=[2.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-        time=[0,300000000],
+        velocities=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+        time=[5,0],
     ):
         goal = JointTrajectory()
         goal.joint_names = self.joints
