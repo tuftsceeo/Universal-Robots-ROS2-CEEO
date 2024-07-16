@@ -178,7 +178,13 @@ class MyUR3e(rclpy.node.Node):
             elif units == "degrees":
                 point.positions = self.pointdeg2rad(position)
 
-            time = (i + 1) * time_step
+            if i == 0 and type(time_step) == tuple:
+                time = time_step[0]
+            elif type(time_step) == tuple:
+                time = time_step[0] + (i+1)*time_step[1]
+            else:
+                time = (i+1) * time_step
+            
             sec = int(time - (time % 1))
             nanosec = int(time % 1 * 1000000000)
             point.time_from_start = Duration(sec=sec, nanosec=nanosec)
@@ -213,7 +219,7 @@ class MyUR3e(rclpy.node.Node):
         """
         goal_handle = future.result()
         if not goal_handle.accepted:
-            self.get_logger().info(f"Goal #{self._id} rejected :(")
+            self.get_logger().info(f"Goal #{self._id} rejected :( (Check driver logs for more info)")
             return
         self.get_logger().debug(f"Goal #{self._id} accepted :)")
         self._get_result_future = goal_handle.get_result_async()
