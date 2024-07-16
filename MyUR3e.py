@@ -9,11 +9,11 @@ from ik_solver.ur_kinematics import URKinematics
 from builtin_interfaces.msg import Duration
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 from control_msgs.action import FollowJointTrajectory
+from std_msgs.msg import Int32MultiArray
 
 # from control_msgs.msg import JointTolerance
 from sensor_msgs.msg import JointState
 from geometry_msgs.msg import WrenchStamped
-
 
 
 class MyException(Exception):
@@ -55,7 +55,7 @@ class MyUR3e(rclpy.node.Node):
         self.id = 0
         self.joint_states = JointStates()
         self.tool_wrench = ToolWrench()
-
+        self.gripper = Gripper()
 
     @staticmethod
     def pointdeg2rad(point):
@@ -67,12 +67,17 @@ class MyUR3e(rclpy.node.Node):
 
     def solve_ik(self, cords):
         current_pose = self.joint_states.get()["position"]
-
         if len(cords) == 6:
             r = R.from_euler("xyz", cords[3:6], degrees=True)
             quat = r.as_quat(scalar_first=True).tolist()
             cords = cords[0:3] + quat
         return self.ik_solver.inverse(cords, False, q_guess=current_pose).tolist()
+    
+    def move_gripper(self,POS,SPE,FOR):
+        self.gripper.control(POS,SPE,FOR)
+
+    def get_gripper(self):
+        return list(self.gripper.get())
 
     def move_global(self, coordinates, time_step=5):
         current_pose = self.joint_states.get_joints()["position"]
@@ -100,7 +105,6 @@ class MyUR3e(rclpy.node.Node):
         self.get_logger().debug(f"Beginning Trajectory")
         trajectory = self.make_trajectory(joint_positions, time_step=time_step)
         self.execute_trajectory(trajectory)
-
         self.wait(self)
 
     def make_trajectory(
@@ -202,7 +206,6 @@ class JointStates(rclpy.node.Node):
             JointState, "joint_states", self.listener_callback, 10
         )
         self.ik_solver = URKinematics("ur3e")
-
         self.states = None
         self.done = False
 
@@ -278,3 +281,43 @@ class ToolWrench(rclpy.node.Node):
             rclpy.spin_once(client)
             self.get_logger().debug(f"Waiting for wrench client")
 
+
+class Gripper(rclpy.node.Node):
+    """
+    Subscribe and publish to Gripper topics
+    """
+
+    def __init__(self):
+        super().__init__("gripper_client")
+        self.subscription = self.create_subscription(
+            Int32MultiArray,
+            "/gripper/state",
+            self.listener_callback,
+            10,
+        )
+
+        self.publisher_ = self.create_publisher(Int32MultiArray, "/gripper/control", 10)
+
+        self.states = None
+        self.done = False
+
+    def listener_callback(self, msg):
+        data = msg.data
+        self.states = data
+        self.done = True
+
+    def get(self):
+        self.wait(self)
+        self.done = False
+        return self.states
+
+    def control(self,POS,SPE,FOR):
+        msg = Int32MultiArray()
+        msg.data = [POS,SPE,FOR]
+        self.publisher_.publish(msg)
+
+    def wait(self, client):
+        rclpy.spin_once(client)
+        while not client.done:
+            rclpy.spin_once(client)
+            self.get_logger().debug(f"Waiting for gripper client")
