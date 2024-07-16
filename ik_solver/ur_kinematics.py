@@ -1,5 +1,6 @@
 import math
 import numpy as np
+import ik_solver.ur3e_ikfast as ur_ikfast
 
 def quaternion_from_matrix(matrix):
     """Return quaternion from rotation matrix.
@@ -43,20 +44,6 @@ def pose_quaternion_from_matrix(matrix):
 class URKinematics():
 
     def __init__(self, robot_name):
-        if robot_name == 'ur3':
-            import ur3_ikfast as ur_ikfast
-        elif robot_name == 'ur3e':
-            import ur3e_ikfast as ur_ikfast
-        elif robot_name == 'ur5':
-            import ur5_ikfast as ur_ikfast
-        elif robot_name == 'ur5e':
-            import ur5e_ikfast as ur_ikfast
-        elif robot_name == 'ur10':
-            import ur10_ikfast as ur_ikfast
-        elif robot_name == 'ur10e':
-            import ur10e_ikfast as ur_ikfast
-        else:
-            raise Exception("Unsupported robot")
 
         self.kinematics = ur_ikfast.PyKinematics()
         self.n_joints = self.kinematics.getDOF()
