@@ -71,22 +71,28 @@ class MyUR3e(rclpy.node.Node):
     #################### PUBLIC METHODS ####################
     ########################################################
 
-    def solve_ik(self, cords):
+    def solve_ik(self, cords, q_guess=None):
         """
         Solve inverse kinematics for given coordinates.
 
         Args:
             cords (list): A list of coordinates, either [x, y, z, rx, ry, rz] or [x, y, z, qx, qy, qz, qw].
+            q_guess (list): A list of joint angles used to find the closest IK solution.
 
         Returns:
             list: Joint positions that achieve the given coordinates. [see self.joints]
         """
-        current_pose = self.joint_states.get()["position"]
+        # Get current pose of robot to use as q_guess if q_guess == None
+        if q_guess == None:
+            q_guess = self.joint_states.get_joints()["position"]
+
+        # if coordinates in euler format convert to quaternions
         if len(cords) == 6:
             r = R.from_euler("xyz", cords[3:6], degrees=True)
             quat = r.as_quat(scalar_first=True).tolist()
             cords = cords[0:3] + quat
-        return self.ik_solver.inverse(cords, False, q_guess=current_pose).tolist()
+
+        return self.ik_solver.inverse(cords, False, q_guess=q_guess)
 
     def move_gripper(self, POS, SPE, FOR):
         """
@@ -117,29 +123,21 @@ class MyUR3e(rclpy.node.Node):
                 either [x, y, z, rx, ry, rz] or [x, y, z, qx, qy, qz, qw].
             time_step (int): Time step between each coordinate.
         """
-        current_pose = self.joint_states.get_joints()["position"]
-        self.get_logger().debug(f"Current Pose: {current_pose}")
-
         joint_positions = []
-        for cord in coordinates:
-            if len(cord) == 6:
-                r = R.from_euler(
-                    "xyz", cord[3:6], degrees=True
-                )  # futz with because orientation axes are off
-                quat = r.as_quat(scalar_first=True).tolist()
-                cord = cord[0:3] + quat
-            joint_positions.append(
-                self.ik_solver.inverse(cord, False, q_guess=current_pose).tolist()
-            )
+        for i,cord in enumerate(coordinates):
+            if i == 0:
+                joint_positions.append(self.solve_ik(cord))
+            else:
+                joint_positions.append(self.solve_ik(cord,joint_positions[i-1]))
 
         if None in joint_positions:
-            raise RuntimeError("IK solution not found")
+            raise RuntimeError(f"IK solution not found for {joint_positions.count(None)}/{len(joint_positions)} points")
         else:
             self.move_joints(joint_positions, time_step=time_step)
 
     def move_joints(self, joint_positions, time_step=5):
         """
-        Move the robot joints to the specified positions.
+        Move the robot joints to the specified angular positions.
 
         Args:
             joint_positions (list): List of joint positions.

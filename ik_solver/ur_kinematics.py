@@ -113,4 +113,4 @@ def best_ik_sol(sols, q_guess, weights=np.ones(6)):
         return None
     best_sol_ind = np.argmin(
         np.sum((weights * (valid_sols - np.array(q_guess)))**2, 1))
-    return valid_sols[best_sol_ind]
+    return list(valid_sols[best_sol_ind])
