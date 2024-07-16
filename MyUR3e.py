@@ -15,6 +15,7 @@ from sensor_msgs.msg import JointState
 from geometry_msgs.msg import WrenchStamped
 
 
+
 class MyException(Exception):
     pass
 
@@ -55,6 +56,7 @@ class MyUR3e(rclpy.node.Node):
         self.joint_states = JointStates()
         self.tool_wrench = ToolWrench()
 
+
     @staticmethod
     def pointdeg2rad(point):
         point2 = []
@@ -65,6 +67,7 @@ class MyUR3e(rclpy.node.Node):
 
     def solve_ik(self, cords):
         current_pose = self.joint_states.get()["position"]
+
         if len(cords) == 6:
             r = R.from_euler("xyz", cords[3:6], degrees=True)
             quat = r.as_quat(scalar_first=True).tolist()
@@ -97,6 +100,7 @@ class MyUR3e(rclpy.node.Node):
         self.get_logger().debug(f"Beginning Trajectory")
         trajectory = self.make_trajectory(joint_positions, time_step=time_step)
         self.execute_trajectory(trajectory)
+
         self.wait(self)
 
     def make_trajectory(
@@ -198,6 +202,7 @@ class JointStates(rclpy.node.Node):
             JointState, "joint_states", self.listener_callback, 10
         )
         self.ik_solver = URKinematics("ur3e")
+
         self.states = None
         self.done = False
 
@@ -272,3 +277,4 @@ class ToolWrench(rclpy.node.Node):
         while not client.done:
             rclpy.spin_once(client)
             self.get_logger().debug(f"Waiting for wrench client")
+
