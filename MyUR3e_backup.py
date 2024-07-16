@@ -9,11 +9,8 @@ from ik_solver.ur_kinematics import URKinematics
 from builtin_interfaces.msg import Duration
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 from control_msgs.action import FollowJointTrajectory
-
-# from control_msgs.msg import JointTolerance
 from sensor_msgs.msg import JointState
 from geometry_msgs.msg import WrenchStamped
-
 
 
 class MyException(Exception):
@@ -56,7 +53,6 @@ class MyUR3e(rclpy.node.Node):
         self.joint_states = JointStates()
         self.tool_wrench = ToolWrench()
 
-
     @staticmethod
     def pointdeg2rad(point):
         point2 = []
@@ -65,91 +61,64 @@ class MyUR3e(rclpy.node.Node):
             point2.append(math.radians(point[i]))
         return point2
 
-    def solve_ik(self, cords):
+    def move_global(self, cords, time=5):
         current_pose = self.joint_states.get()["position"]
+        self.get_logger().debug(f"Current Pose: {current_pose}")
 
         if len(cords) == 6:
             r = R.from_euler("xyz", cords[3:6], degrees=True)
             quat = r.as_quat(scalar_first=True).tolist()
             cords = cords[0:3] + quat
-        return self.ik_solver.inverse(cords, False, q_guess=current_pose).tolist()
-
-    def move_global(self, coordinates, time_step=5):
-        current_pose = self.joint_states.get_joints()["position"]
-        self.get_logger().debug(f"Current Pose: {current_pose}")
-
-        joint_positions = []
-        for cord in coordinates:
-            if len(cord) == 6:
-                r = R.from_euler(
-                    "xyz", cord[3:6], degrees=True
-                )  # futz with because orientation axes are off
-                quat = r.as_quat(scalar_first=True).tolist()
-                cord = cord[0:3] + quat
-            joint_positions.append(
-                self.ik_solver.inverse(cord, False, q_guess=current_pose).tolist()
-            )
-
-        if None in joint_positions:
+        joint_positions = self.ik_solver.inverse(
+            cords, False, q_guess=current_pose
+        )  # missing q_guess=joint_angles_rad could be essential
+        self.get_logger().debug(f"New Pose: {joint_positions}")
+        if joint_positions is None:
             raise MyException("IK solution not found")
-            # self.get_logger().debug(f"No IK Solution Found")
         else:
-            self.move_joints(joint_positions, time_step=time_step)
+            self.move_joints(joint_positions.tolist(), time=time)
 
-    def move_joints(self, joint_positions, time_step=5):
-        self.get_logger().debug(f"Beginning Trajectory")
-        trajectory = self.make_trajectory(joint_positions, time_step=time_step)
-        self.execute_trajectory(trajectory)
-
+    def move_joints(self, joint_positions, time=5):
+        self.get_logger().debug(f"Moving to joint angles {joint_positions}")
+        goal = self.make_goal(joint_positions, time=time)
+        self.execute_goal(goal)
         self.wait(self)
 
-    def make_trajectory(
+    # @staticmethod # not used because goal.joint_names relies on instance's self.joints
+    def make_goal(
         self,
         joint_positions,
         units="radians",
-        time_step=5,
+        velocities=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+        time=5,
     ):
-        trajectory = JointTrajectory()
-        trajectory.joint_names = self.joints
+        goal = JointTrajectory()
+        goal.joint_names = self.joints
+        point = JointTrajectoryPoint()
         self.id += 1
 
-        for i, position in enumerate(joint_positions):
-            point = JointTrajectoryPoint()
+        if units == "radians":
+            point.positions = joint_positions
+        elif units == "degrees":
+            point.positions = self.pointdeg2rad(joint_positions)
 
-            if units == "radians":
-                point.positions = position
-            elif units == "degrees":
-                point.positions = self.pointdeg2rad(position)
+        point.velocities = velocities
+        sec = int(time - (time % 1))
+        nanosec = int(time % 1 * 1000000000)
+        point.time_from_start = Duration(sec=sec, nanosec=nanosec)
+        goal.points.append(point)
+        return goal
 
-            time = (i + 1) * time_step
-            sec = int(time - (time % 1))
-            nanosec = int(time % 1 * 1000000000)
-            point.time_from_start = Duration(sec=sec, nanosec=nanosec)
-            trajectory.points.append(point)
-
-        return trajectory
-
-    def execute_trajectory(self, trajectory):
+    def execute_goal(self, goal):
         self.get_logger().info(f"Goal #{self.id}: Executing")
         self.done = False  # this was .static ??? could be error
 
-        goal = FollowJointTrajectory.Goal()
-        goal.trajectory = trajectory
+        this_goal = FollowJointTrajectory.Goal()
+        this_goal.trajectory = goal
 
-        # More settings available : https://docs.ros.org/en/diamondback/api/control_msgs/html/msg/FollowJointTrajectoryGoal.html
-        # for joint in self.joints:
-        #     path_tolerance = JointTolerance()
-        #     path_tolerance.name = joint
-        #     path_tolerance.position = 0.05
-        #     path_tolerance.velocity = 0.1
-        #     path_tolerance.acceleration = 0.1
-        #     goal.path_tolerance.append(path_tolerance)
-
-        # goal.goal_tolerance = position, velocity, acceleration values
-
-        self._action_client.wait_for_server()
-        self._send_goal_future = self._action_client.send_goal_async(goal)
-        self.get_logger().debug(f"Sent trajectory #{self.id}")
+        self._action_client.wait_for_server()  # this was missing
+        self._send_goal_future = self._action_client.send_goal_async(this_goal)
+        self.get_logger().debug(f"Sent goal #{self.id}")
         self._send_goal_future.add_done_callback(self.goal_response_callback)
 
     def goal_response_callback(self, future):
@@ -201,8 +170,6 @@ class JointStates(rclpy.node.Node):
         self.subscription = self.create_subscription(
             JointState, "joint_states", self.listener_callback, 10
         )
-        self.ik_solver = URKinematics("ur3e")
-
         self.states = None
         self.done = False
 
@@ -216,19 +183,10 @@ class JointStates(rclpy.node.Node):
         self.states = data
         self.done = True
 
-    def get_joints(self):
+    def get(self):
         self.wait(self)
         self.done = False
         return self.states
-
-    def get_global(self):
-        self.wait(self)
-        self.done = False
-        cords_q = self.ik_solver.forward(self.states["position"])
-        r = R.from_quat(cords_q[3:7], scalar_first=True)
-        euler = r.as_euler("xyz", degrees=True).tolist()
-        cords = cords_q[0:3].tolist() + euler
-        return cords
 
     def wait(self, client):
         rclpy.spin_once(client)
@@ -277,4 +235,3 @@ class ToolWrench(rclpy.node.Node):
         while not client.done:
             rclpy.spin_once(client)
             self.get_logger().debug(f"Waiting for wrench client")
-
