@@ -88,7 +88,9 @@ class MyUR3e(rclpy.node.Node):
 
         # if coordinates in euler format convert to quaternions
         if len(cords) == 6:
-            r = R.from_euler("xyz", cords[3:6], degrees=True)
+            if cords[3:6] == [0,0,0]:
+                cords[3:6] = [0.1,0,0]
+            r = R.from_euler("zyx", cords[3:6], degrees=True)
             quat = r.as_quat(scalar_first=True).tolist()
             cords = cords[0:3] + quat
 
