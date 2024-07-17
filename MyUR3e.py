@@ -1,8 +1,8 @@
 import math
 from scipy.spatial.transform import Rotation as R
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 import numpy as np
-from mpl_toolkits.mplot3d import Axes3D
+#from mpl_toolkits.mplot3d import Axes3D
 
 import rclpy
 from rclpy.action import ActionClient
@@ -15,6 +15,7 @@ from std_msgs.msg import Int32MultiArray
 # from control_msgs.msg import JointTolerance
 from sensor_msgs.msg import JointState
 from geometry_msgs.msg import WrenchStamped
+import TrajectoryPlanner
 
 
 class MyUR3e(rclpy.node.Node):
@@ -65,6 +66,7 @@ class MyUR3e(rclpy.node.Node):
         self._id = 0
 
         # Public Attributes
+        self.sim = TrajectoryPlanner.TrajectoryPlanner()
         self.ik_solver = URKinematics("ur3e")
         self.joint_states = JointStates()
         self.tool_wrench = ToolWrench()
@@ -119,35 +121,10 @@ class MyUR3e(rclpy.node.Node):
         """
         return list(self.gripper.get())
 
-    @staticmethod
-    def visualize_trajectory(positions, paper=False):
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
+    def clear_sim(self):
+        self.sim.clear_plot()
 
-        # Unpack positions and orientations
-        x, y, z, ox, oy, oz = zip(*positions)
-
-        # Plot trajectory
-        ax.plot(x, y, z, label='Trajectory', c='r')
-        ax.scatter(x, y, z, c='r')
-
-        ax.set_xlabel('X')
-        ax.set_ylabel('Y')
-        ax.set_zlabel('Z')
-
-        if paper == True:
-            ax.set_xlim(-0.1, 0.19)
-            ax.set_ylim(-0.2, 0.43)
-            ax.set_zlim(.19, .23)
-        else:
-            ax.set_xlim(-0.5, 0.5)
-            ax.set_ylim(-0.5, 0.5)
-            ax.set_zlim(0.0, 1.0)
-            ax.plot([0, 0], [0, 0], [0, .2], 'k-', linewidth=5, label="Robot Base")
-        ax.legend()
-        plt.show()
-
-    def move_global(self, coordinates, time_step=5, sim=False, simpaper=False):
+    def move_global(self, coordinates, time_step=5, sim=True):
         """
         Move the robot to specified global coordinates.
 
@@ -156,24 +133,20 @@ class MyUR3e(rclpy.node.Node):
                 either [x, y, z, rx, ry, rz] or [x, y, z, qx, qy, qz, qw].
             time_step (int): Time step between each coordinate.
         """
-        if sim == True: # produce trajectory plot
-            self.visualize_trajectory(coordinates, paper=False)
-            return
-        elif simpaper == True:
-            self.visualize_trajectory(coordinates, paper=True)
-            return
+        self.sim.add_trajectory(coordinates)
 
-        joint_positions = []
-        for i,cord in enumerate(coordinates):
-            if i == 0:
-                joint_positions.append(self.solve_ik(cord))
+        if sim == False:
+            joint_positions = []
+            for i,cord in enumerate(coordinates):
+                if i == 0:
+                    joint_positions.append(self.solve_ik(cord))
+                else:
+                    joint_positions.append(self.solve_ik(cord,joint_positions[i-1]))
+    
+            if None in joint_positions:
+                raise RuntimeError(f"IK solution not found for {joint_positions.count(None)}/{len(joint_positions)} points")
             else:
-                joint_positions.append(self.solve_ik(cord,joint_positions[i-1]))
-
-        if None in joint_positions:
-            raise RuntimeError(f"IK solution not found for {joint_positions.count(None)}/{len(joint_positions)} points")
-        else:
-            self.move_joints(joint_positions, time_step=time_step)
+                self.move_joints(joint_positions, time_step=time_step)
 
     def move_joints(self, joint_positions, time_step=5):
         """
