@@ -1,5 +1,6 @@
 import math
 from scipy.spatial.transform import Rotation as R
+import matplotlib as plt
 
 import rclpy
 from rclpy.action import ActionClient
@@ -115,8 +116,31 @@ class MyUR3e(rclpy.node.Node):
             list: [POS (int), SPE (int), FOR (int)]
         """
         return list(self.gripper.get())
+    
+    @staticmethod
+    def visualize_trajectory(positions):
+            fig = plt.figure()
+            ax = fig.add_subplot(111, projection='3d')
 
-    def move_global(self, coordinates, time_step=5):
+            # Unpack positions and orientations
+            x, y, z = zip(*positions)
+
+            # Plot trajectory
+            ax.plot(x, y, z, label='Trajectory', c='r')
+            ax.scatter(x, y, z, c='r')
+
+            ax.plot([0, 0], [0, 0], [0, .2], 'k-', linewidth=5, label="Robot Base")
+            
+            ax.set_xlabel('X')
+            ax.set_ylabel('Y')
+            ax.set_zlabel('Z')
+            ax.set_xlim(-0.1, 0.19)
+            ax.set_ylim(-0.2, 0.43)
+            ax.set_zlim(.19, .23)
+            ax.legend()
+            plt.show()
+
+    def move_global(self, coordinates, time_step=5, sim=False):
         """
         Move the robot to specified global coordinates.
 
@@ -125,6 +149,10 @@ class MyUR3e(rclpy.node.Node):
                 either [x, y, z, rx, ry, rz] or [x, y, z, qx, qy, qz, qw].
             time_step (int): Time step between each coordinate.
         """
+        if sim == True: # produce trajectory plot
+            self.visualize_trajectory(coordinates)
+            return
+
         joint_positions = []
         for i,cord in enumerate(coordinates):
             if i == 0:
