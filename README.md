@@ -19,8 +19,8 @@ If you are running code from the CEEO JupyterHub then you can assume that your e
 Clone this repository to your local machine:
 
 ```bash
-git clone <repository-url>
-cd <repository-directory>
+git clone https://github.com/tuftsceeo/Universal-Robots-ROS2-CEEO
+cd Universal-Robots-ROS2-CEEO
 ```
 
 ## Installation
