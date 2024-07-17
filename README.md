@@ -30,8 +30,9 @@ Run the launch.py file:
 python3 launch.py
 ```
 
-Verify you can interact with the ROS2 topics by listening to topics:
+Verify you can interact with the ROS2 topics:
 ```bash
+# Should return a list of ~20 topics, for example /joint_states and /gripper/control
 ros2 topic list
 ```
 
