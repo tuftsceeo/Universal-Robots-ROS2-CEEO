@@ -12,7 +12,7 @@ Before running the scripts in this repository, ensure you have the following ins
 - Python 3.x (recommended: Python 3.8+)
 - UR ROS2 Driver
 
-* If you are running code from the CEEO JupyterHub then you can assume that your environment is already configured.
+If you are running code from the CEEO JupyterHub then you can assume that your environment is already configured.
 
 ## Installation
 
