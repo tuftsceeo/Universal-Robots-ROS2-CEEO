@@ -118,31 +118,36 @@ class MyUR3e(rclpy.node.Node):
             list: [POS (int), SPE (int), FOR (int)]
         """
         return list(self.gripper.get())
-    
+
     @staticmethod
-    def visualize_trajectory(positions):
-            fig = plt.figure()
-            ax = fig.add_subplot(111, projection='3d')
+    def visualize_trajectory(positions, paper=False):
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
 
-            # Unpack positions and orientations
-            x, y, z, ox, oy, oz = zip(*positions)
+        # Unpack positions and orientations
+        x, y, z, ox, oy, oz = zip(*positions)
 
-            # Plot trajectory
-            ax.plot(x, y, z, label='Trajectory', c='r')
-            ax.scatter(x, y, z, c='r')
+        # Plot trajectory
+        ax.plot(x, y, z, label='Trajectory', c='r')
+        ax.scatter(x, y, z, c='r')
 
-            # ax.plot([0, 0], [0, 0], [0, .2], 'k-', linewidth=5, label="Robot Base")
-            
-            ax.set_xlabel('X')
-            ax.set_ylabel('Y')
-            ax.set_zlabel('Z')
+        ax.set_xlabel('X')
+        ax.set_ylabel('Y')
+        ax.set_zlabel('Z')
+
+        if paper == True:
             ax.set_xlim(-0.1, 0.19)
             ax.set_ylim(-0.2, 0.43)
             ax.set_zlim(.19, .23)
-            ax.legend()
-            plt.show()
+        else:
+            ax.set_xlim(-0.5, 0.5)
+            ax.set_ylim(-0.5, 0.5)
+            ax.set_zlim(0.0, 1.0)
+            ax.plot([0, 0], [0, 0], [0, .2], 'k-', linewidth=5, label="Robot Base")
+        ax.legend()
+        plt.show()
 
-    def move_global(self, coordinates, time_step=5, sim=False):
+    def move_global(self, coordinates, time_step=5, sim=False, simpaper=False):
         """
         Move the robot to specified global coordinates.
 
@@ -152,7 +157,10 @@ class MyUR3e(rclpy.node.Node):
             time_step (int): Time step between each coordinate.
         """
         if sim == True: # produce trajectory plot
-            self.visualize_trajectory(coordinates)
+            self.visualize_trajectory(coordinates, paper=False)
+            return
+        elif simpaper == True:
+            self.visualize_trajectory(coordinates, paper=True)
             return
 
         joint_positions = []
@@ -214,7 +222,7 @@ class MyUR3e(rclpy.node.Node):
                 time = time_step[0] + (i+1)*time_step[1]
             else:
                 time = (i+1) * time_step
-            
+
             sec = int(time - (time % 1))
             nanosec = int(time % 1 * 1000000000)
             point.time_from_start = Duration(sec=sec, nanosec=nanosec)
