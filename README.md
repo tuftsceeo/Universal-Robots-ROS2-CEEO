@@ -58,9 +58,12 @@ def main():
         robot.gripper.move(0,255,255) # Open
         robot.gripper.move(255,255,255) # Close
 
-        # Move the Arm:
+        # Simulate the Arm:
         coordinates = [0.5, 0.5, 0.3, 0.0, 0.0, 0.0] # [x,y,z,rx,ry,rz]
-        robot.move_global(coordinates)
+        robot.move_global(coordinates, sim=True)
+
+        # Move the Arm:
+        robot.move_global(coordinates,time_step=5)
 
     finally:
         rclpy.shutdown()
