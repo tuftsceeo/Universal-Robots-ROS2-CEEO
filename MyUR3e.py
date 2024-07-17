@@ -131,7 +131,7 @@ class MyUR3e(rclpy.node.Node):
             ax.plot(x, y, z, label='Trajectory', c='r')
             ax.scatter(x, y, z, c='r')
 
-            ax.plot([0, 0], [0, 0], [0, .2], 'k-', linewidth=5, label="Robot Base")
+            # ax.plot([0, 0], [0, 0], [0, .2], 'k-', linewidth=5, label="Robot Base")
             
             ax.set_xlabel('X')
             ax.set_ylabel('Y')
