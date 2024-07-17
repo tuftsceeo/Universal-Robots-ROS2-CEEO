@@ -1,6 +1,8 @@
 import math
 from scipy.spatial.transform import Rotation as R
-import matplotlib as plt
+import matplotlib.pyplot as plt
+import numpy as np
+from mpl_toolkits.mplot3d import Axes3D
 
 import rclpy
 from rclpy.action import ActionClient
@@ -123,7 +125,7 @@ class MyUR3e(rclpy.node.Node):
             ax = fig.add_subplot(111, projection='3d')
 
             # Unpack positions and orientations
-            x, y, z = zip(*positions)
+            x, y, z, ox, oy, oz = zip(*positions)
 
             # Plot trajectory
             ax.plot(x, y, z, label='Trajectory', c='r')
