@@ -71,3 +71,16 @@ def main():
 if __name__ == '__main__':
     main()
 ```
+
+## Troubleshooting ##
+
+My code freezes when I try to initialize the MyUR3e class:
+- Make sure that you have launched the UR ROS Driver.
+I am getting the error "Goal Rejected :(":
+- Check the logs of the UR ROS Driver for error messages
+- Make sure the UR Pendant has the "External Control" program running
+- Make sure the scaled_joint_trajectory_controller is running. If its not, run the following in an available terminal:
+```bash
+ros2 control list_controllers
+ros2 control switch_controllers --activate scaled_joint_trajectory_controller
+```
