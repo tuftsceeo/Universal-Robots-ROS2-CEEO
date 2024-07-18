@@ -9,9 +9,20 @@ class TrajectoryPlanner:
         self.num_traj = 0
         self.figure = None  # Placeholder for Plotly figure
         self.current_plot_filename = 'ur3e_trajectory.html'  # Filename for HTML output
-        self.colors = ['blue', 'green', 'red', 'purple', 'orange', 'cyan']  # Example colors for trajectories
+        self.title = 'UR3e End Effector Trajectories'  # Default title for the plot
+        self.description = 'Refresh to update the plot. Click on a trajectory in the legend to hide, or double click to isolate. Grey segments indicate end effector orientation and red markers highlight points with unsolved inverse kinematics.'  # Default description
+        self.colors = colors = ["#1f77b4",  # blue
+                                "#2ca02c",  # green
+                                "#8c564b",  # brown
+                                "#e377c2",  # pink
+                                "#9467bd",  # purple
+                                "#bcbd22",  # yellow-green
+                                "#17becf",   # cyan
+                                "#ff7f0e",  # orange
+                                "#d62728",  # purple
+                            ]  # Example colors for trajectories
 
-    def add_trajectory(self, coordinates):
+    def add_trajectory(self, coordinates,joint_positions):
         """
         Add a trajectory to the planner.
 
@@ -29,13 +40,16 @@ class TrajectoryPlanner:
         y = [pos[1] for pos in positions]
         z = [pos[2] for pos in positions]
 
+        marker_colors = ['red' if joint is None else self.colors[self.num_traj % len(self.colors)] for joint in joint_positions]
+        marker_size = [12 if joint is None else 6 for joint in joint_positions]
+
         # Create the trajectory trace
         trajectory_trace = go.Scatter3d(
             x=x,
             y=y,
             z=z,
             mode='lines+markers',
-            marker=dict(size=4, color=self.colors[self.num_traj % len(self.colors)], opacity=0.8),
+            marker=dict(size=marker_size, color=marker_colors, opacity=0.8),
             line=dict(color=self.colors[self.num_traj % len(self.colors)], width=2),
             name=f'Trajectory #{self.num_traj}'
         )
@@ -79,7 +93,7 @@ class TrajectoryPlanner:
                 z=[pos[2], pos[2] - orientation_vector[2]],
                 mode='lines+markers',
                 line=dict(color='grey', width=3),
-                marker=dict(size=2, color='black'),
+                marker=dict(size=2, color='grey'),
                 name=f'Trajectory #{self.num_traj} Orientation Vectors',  # All orientation vectors under one legend entry
                 legendgroup=f'orientation{self.num_traj}',  # Group orientation vectors in legend
                 showlegend=first_entry  # Set initial visibility based on flag
@@ -93,6 +107,7 @@ class TrajectoryPlanner:
         """
         # Define the layout with fixed axis limits
         layout = go.Layout(
+            title=dict(text=self.title, font=dict(size=20), automargin=True, yref='container'),
             scene=dict(
                 xaxis=dict(title='X', range=[-0.5, 0.5]),
                 yaxis=dict(title='Y', range=[-0.5, 0.5]),
@@ -102,9 +117,19 @@ class TrajectoryPlanner:
                 )
             ),
             margin=dict(l=0, r=0, b=0, t=0),
-            legend=dict(x=0.8, y=0.8)  # Adjust legend position
+            legend=dict(x=0.8, y=0.8),  # Adjust legend position
+            annotations=[
+                dict(
+                    text=self.description,
+                    showarrow=False,
+                    xref="paper",
+                    yref="paper",
+                    x=0,
+                    y=-0.1
+                )
+            ],
         )
-
+        
         # Combine all traces
         data = self.trajectories
 
@@ -116,6 +141,7 @@ class TrajectoryPlanner:
 
         # Export the plot to an HTML file
         pyo.plot(self.figure, filename=self.current_plot_filename)
+
 
     def clear_plot(self):
         """
