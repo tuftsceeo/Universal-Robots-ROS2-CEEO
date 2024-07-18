@@ -75,7 +75,7 @@ if __name__ == '__main__':
 ## Troubleshooting ##
 
 My code freezes when I try to initialize the MyUR3e class:
-- Make sure that you have launched the UR ROS Driver.   
+- Make sure that you have launched the UR ROS Driver.<br/>
 I am getting the error "Goal Rejected :(":
 - Check the logs of the UR ROS Driver for error messages
 - Make sure the UR Pendant has the "External Control" program running
