@@ -2,6 +2,7 @@ import math
 from scipy.spatial.transform import Rotation as R
 #import matplotlib.pyplot as plt
 import numpy as np
+from operator import add
 #from mpl_toolkits.mplot3d import Axes3D
 
 import rclpy
@@ -16,7 +17,6 @@ from std_msgs.msg import Int32MultiArray
 from sensor_msgs.msg import JointState
 from geometry_msgs.msg import WrenchStamped
 import TrajectoryPlanner
-
 
 class MyUR3e(rclpy.node.Node):
     """
@@ -121,6 +121,15 @@ class MyUR3e(rclpy.node.Node):
         """
         return list(self.gripper.get())
 
+    def get_joints(self):
+        return self.joint_states.get_joints()
+
+    def get_global(self):
+        return self.joint_states.get_global()
+
+    def get_tool(self):
+        return self.tool_wrench.get()
+
     def clear_sim(self):
         self.sim.clear_plot()
 
@@ -133,22 +142,21 @@ class MyUR3e(rclpy.node.Node):
                 either [x, y, z, rx, ry, rz] or [x, y, z, qx, qy, qz, qw].
             time_step (int): Time step between each coordinate.
         """
-        self.sim.add_trajectory(coordinates)
-
-        if sim == False:
-            joint_positions = []
-            for i,cord in enumerate(coordinates):
-                if i == 0:
-                    joint_positions.append(self.solve_ik(cord))
-                else:
-                    joint_positions.append(self.solve_ik(cord,joint_positions[i-1]))
-    
-            if None in joint_positions:
-                raise RuntimeError(f"IK solution not found for {joint_positions.count(None)}/{len(joint_positions)} points")
+        joint_positions = []
+        for i,cord in enumerate(coordinates):
+            if i == 0:
+                joint_positions.append(self.solve_ik(cord))
             else:
-                self.move_joints(joint_positions, time_step=time_step)
+                joint_positions.append(self.solve_ik(cord,joint_positions[i-1]))
 
-    def move_joints(self, joint_positions, time_step=5):
+        self.sim.add_trajectory(coordinates,joint_positions)
+
+        if None in joint_positions:
+            raise RuntimeError(f"IK solution not found for {joint_positions.count(None)}/{len(joint_positions)} points")
+        elif sim == False:
+            self.move_joints(joint_positions, time_step=time_step,sim=sim)
+
+    def move_joints(self, joint_positions, time_step=5, units="radians",sim=True):
         """
         Move the robot joints to the specified angular positions.
 
@@ -156,10 +164,24 @@ class MyUR3e(rclpy.node.Node):
             joint_positions (list): List of joint positions.
             time_step (int): Time step between each position.
         """
-        self.get_logger().debug(f"Beginning Trajectory")
-        trajectory = self.make_trajectory(joint_positions, time_step=time_step)
-        self.execute_trajectory(trajectory)
-        self.wait(self)
+        if not sim:
+            self.get_logger().debug(f"Beginning Trajectory")
+            if units == "radians":
+                trajectory = self.make_trajectory(joint_positions, time_step=time_step)
+            elif units == "degrees":
+                trajectory = self.make_trajectory(joint_positions,units="degrees",time_step=time_step)
+            self.execute_trajectory(trajectory)
+            self.wait(self)
+
+    def move_joints_r(self, joint_deltas, time_step=5, units="radians",sim=True):
+        sequence = []
+        for i,delta in enumerate(joint_deltas):
+            if i == 0:
+                curr = self.get_joints()["position"]
+                sequence.append([sum(x) for x in zip(curr, delta)])
+            else:
+                sequence.append([sum(x) for x in zip(sequence[i-1], delta)])
+        self.move_joints(sequence,time_step=time_step,units=units,sim=sim)
 
     ########################################################
     #################### PRIVATE METHODS ###################
