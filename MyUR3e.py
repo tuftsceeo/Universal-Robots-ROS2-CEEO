@@ -1,9 +1,7 @@
 import math
 from scipy.spatial.transform import Rotation as R
-#import matplotlib.pyplot as plt
 import numpy as np
 from operator import add
-#from mpl_toolkits.mplot3d import Axes3D
 
 import rclpy
 from rclpy.action import ActionClient
@@ -122,15 +120,36 @@ class MyUR3e(rclpy.node.Node):
         return list(self.gripper.get())
 
     def get_joints(self):
+        """
+        Get the joint_states data.
+
+        Returns:
+            dict: {"name","position","velocity","effort"}
+        """
         return self.joint_states.get_joints()
 
     def get_global(self):
+        """
+        Get the global position of end effector.
+
+        Returns:
+            list: [x,y,z,rx,ry,rz]
+        """
         return self.joint_states.get_global()
 
-    def get_tool(self):
+    def get_force(self):
+        """
+        Get the force data at the end effector.
+
+        Returns:
+            dict: {"force","torque"}
+        """
         return self.tool_wrench.get()
 
     def clear_sim(self):
+        """
+        Clear all trajectories in the simulation plot.
+        """
         self.sim.clear_plot()
 
     def move_global(self, coordinates, time_step=5, sim=True):
@@ -141,6 +160,7 @@ class MyUR3e(rclpy.node.Node):
             coordinates (list): List of coordinates to move to.
                 either [x, y, z, rx, ry, rz] or [x, y, z, qx, qy, qz, qw].
             time_step (int): Time step between each coordinate.
+            sim (bool): True if no motion is desired, False if motion is desired.
         """
         joint_positions = []
         for i,cord in enumerate(coordinates):
@@ -163,6 +183,8 @@ class MyUR3e(rclpy.node.Node):
         Args:
             joint_positions (list): List of joint positions.
             time_step (int): Time step between each position.
+            units (string): Units of angle ("radians","degrees").
+            sim (bool): True if no motion is desired, False if motion is desired.
         """
         if not sim:
             self.get_logger().debug(f"Beginning Trajectory")
@@ -174,6 +196,15 @@ class MyUR3e(rclpy.node.Node):
             self.wait(self)
 
     def move_joints_r(self, joint_deltas, time_step=5, units="radians",sim=True):
+        """
+        Move the robot joints relative to their current or last position.
+
+        Args:
+            joint_positions (list): List of relative joint positions.
+            time_step (int): Time step between each position.
+            units (string): Units of angle ("radians","degrees").
+            sim (bool): True if no motion is desired, False if motion is desired.
+        """
         sequence = []
         for i,delta in enumerate(joint_deltas):
             if i == 0:
