@@ -16,6 +16,7 @@ from sensor_msgs.msg import JointState
 from geometry_msgs.msg import WrenchStamped
 import TrajectoryPlanner
 
+
 class MyUR3e(rclpy.node.Node):
     """
     A class to control the UR3e robot arm using ROS2.
@@ -91,8 +92,8 @@ class MyUR3e(rclpy.node.Node):
 
         # if coordinates in euler format convert to quaternions
         if len(cords) == 6:
-            if cords[3:6] == [0,0,0]:
-                cords[3:6] = [0.1,0,0]
+            if cords[3:6] == [0, 0, 0]:
+                cords[3:6] = [0.1, 0, 0]
             r = R.from_euler("zyx", cords[3:6], degrees=True)
             quat = r.as_quat(scalar_first=True).tolist()
             cords = cords[0:3] + quat
@@ -163,20 +164,22 @@ class MyUR3e(rclpy.node.Node):
             sim (bool): True if no motion is desired, False if motion is desired.
         """
         joint_positions = []
-        for i,cord in enumerate(coordinates):
+        for i, cord in enumerate(coordinates):
             if i == 0:
                 joint_positions.append(self.solve_ik(cord))
             else:
-                joint_positions.append(self.solve_ik(cord,joint_positions[i-1]))
+                joint_positions.append(self.solve_ik(cord, joint_positions[i - 1]))
 
-        self.sim.add_trajectory(coordinates,joint_positions)
+        self.sim.add_trajectory(coordinates, joint_positions)
 
         if None in joint_positions:
-            raise RuntimeError(f"IK solution not found for {joint_positions.count(None)}/{len(joint_positions)} points")
+            raise RuntimeError(
+                f"IK solution not found for {joint_positions.count(None)}/{len(joint_positions)} points"
+            )
         elif sim == False:
-            self.move_joints(joint_positions, time_step=time_step,sim=sim)
+            self.move_joints(joint_positions, time_step=time_step, sim=sim)
 
-    def move_joints(self, joint_positions, time_step=5, units="radians",sim=True):
+    def move_joints(self, joint_positions, time_step=5, units="radians", sim=True):
         """
         Move the robot joints to the specified angular positions.
 
@@ -191,11 +194,13 @@ class MyUR3e(rclpy.node.Node):
             if units == "radians":
                 trajectory = self.make_trajectory(joint_positions, time_step=time_step)
             elif units == "degrees":
-                trajectory = self.make_trajectory(joint_positions,units="degrees",time_step=time_step)
+                trajectory = self.make_trajectory(
+                    joint_positions, units="degrees", time_step=time_step
+                )
             self.execute_trajectory(trajectory)
             self.wait(self)
 
-    def move_joints_r(self, joint_deltas, time_step=5, units="radians",sim=True):
+    def move_joints_r(self, joint_deltas, time_step=5, units="radians", sim=True):
         """
         Move the robot joints relative to their current or last position.
 
@@ -206,13 +211,13 @@ class MyUR3e(rclpy.node.Node):
             sim (bool): True if no motion is desired, False if motion is desired.
         """
         sequence = []
-        for i,delta in enumerate(joint_deltas):
+        for i, delta in enumerate(joint_deltas):
             if i == 0:
                 curr = self.get_joints()["position"]
                 sequence.append([sum(x) for x in zip(curr, delta)])
             else:
-                sequence.append([sum(x) for x in zip(sequence[i-1], delta)])
-        self.move_joints(sequence,time_step=time_step,units=units,sim=sim)
+                sequence.append([sum(x) for x in zip(sequence[i - 1], delta)])
+        self.move_joints(sequence, time_step=time_step, units=units, sim=sim)
 
     ########################################################
     #################### PRIVATE METHODS ###################
@@ -245,9 +250,9 @@ class MyUR3e(rclpy.node.Node):
             if i == 0 and type(time_step) == tuple:
                 time = time_step[0]
             elif type(time_step) == tuple:
-                time = time_step[0] + (i+1)*time_step[1]
+                time = time_step[0] + (i + 1) * time_step[1]
             else:
-                time = (i+1) * time_step
+                time = (i + 1) * time_step
 
             sec = int(time - (time % 1))
             nanosec = int(time % 1 * 1000000000)
@@ -283,7 +288,9 @@ class MyUR3e(rclpy.node.Node):
         """
         goal_handle = future.result()
         if not goal_handle.accepted:
-            self.get_logger().info(f"Goal #{self._id} rejected :( (Check driver logs for more info)")
+            self.get_logger().info(
+                f"Goal #{self._id} rejected :( (Check driver logs for more info)"
+            )
             return
         self.get_logger().debug(f"Goal #{self._id} accepted :)")
         self._get_result_future = goal_handle.get_result_async()
