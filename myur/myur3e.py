@@ -5,7 +5,7 @@ from operator import add
 
 import rclpy
 from rclpy.action import ActionClient
-from ik_solver.ur_kinematics import URKinematics
+import myur.ik_solver
 from builtin_interfaces.msg import Duration
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 from control_msgs.action import FollowJointTrajectory
@@ -14,7 +14,7 @@ from std_msgs.msg import Int32MultiArray
 # from control_msgs.msg import JointTolerance
 from sensor_msgs.msg import JointState
 from geometry_msgs.msg import WrenchStamped
-from trajectory_planner import TrajectoryPlanner
+from myur.trajectory_planner import TrajectoryPlanner
 
 
 class MyUR3e(rclpy.node.Node):
