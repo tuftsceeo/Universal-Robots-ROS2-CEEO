@@ -1,4 +1,4 @@
-# MyUR3e ROS2 Python Control
+# MyUR ROS2 Python Control
 
 ## Overview
 
