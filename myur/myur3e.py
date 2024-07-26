@@ -32,6 +32,7 @@ class MyUR3e(rclpy.node.Node):
         """
         Initialize the MyUR3e node.
         """
+        rclpy.init()
         super().__init__("remote_control_client")
         self.get_logger().debug("Initializing MyUR3e...")
 
@@ -58,7 +59,9 @@ class MyUR3e(rclpy.node.Node):
 
         # Private Attributes
         self._action_client = ActionClient(self, FollowJointTrajectory, controller_name)
-        self._action_client.wait_for_server()
+        if not self._action_client.wait_for_server(timeout_sec=10):
+            self.__del__()
+            raise RuntimeError('Action server not available after waiting for 10 seconds. Check ROS UR Driver.')
         self._send_goal_future = None
         self._get_result_future = None
         self._done = True
@@ -70,6 +73,9 @@ class MyUR3e(rclpy.node.Node):
         self.joint_states = JointStates()
         self.tool_wrench = ToolWrench()
         self.gripper = Gripper()
+
+    def __del__(self):
+        rclpy.shutdown()
 
     ########################################################
     #################### PUBLIC METHODS ####################
