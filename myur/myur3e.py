@@ -14,7 +14,7 @@ from std_msgs.msg import Int32MultiArray
 # from control_msgs.msg import JointTolerance
 from sensor_msgs.msg import JointState
 from geometry_msgs.msg import WrenchStamped
-import TrajectoryPlanner
+from trajectory_planner import TrajectoryPlanner
 
 
 class MyUR3e(rclpy.node.Node):
@@ -65,7 +65,7 @@ class MyUR3e(rclpy.node.Node):
         self._id = 0
 
         # Public Attributes
-        self.sim = TrajectoryPlanner.TrajectoryPlanner()
+        self.sim = TrajectoryPlanner()
         self.ik_solver = URKinematics("ur3e")
         self.joint_states = JointStates()
         self.tool_wrench = ToolWrench()
