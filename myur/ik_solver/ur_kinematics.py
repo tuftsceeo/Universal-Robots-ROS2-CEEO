@@ -1,6 +1,6 @@
 import math
 import numpy as np
-import ik_solver.ur3e_ikfast as ur_ikfast
+import myur.ik_solver.ur3e_ikfast as ur_ikfast
 
 def quaternion_from_matrix(matrix):
     """Return quaternion from rotation matrix.
