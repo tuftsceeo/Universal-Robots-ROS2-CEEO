@@ -38,15 +38,12 @@ ros2 topic list
 
 Open a Python file or Notebook and start playing with the MyUR3e class!
 ```python
-import MyUR3e
-import rclpy
+from myur import MyUR3e
 
 def main():
-    rclpy.init()
-
     try:
         # Create MyUR3e instance
-        robot = MyUR3e.MyUR3e()
+        robot = MyUR3e()
 
         # Get live data from the robot
         print(robot.joint_states.get_joints()) # Joint Positions, Velocities, Efforts
@@ -66,7 +63,7 @@ def main():
         robot.move_global(coordinates,time_step=5)
 
     finally:
-        rclpy.shutdown()
+        del robot
 
 if __name__ == '__main__':
     main()
