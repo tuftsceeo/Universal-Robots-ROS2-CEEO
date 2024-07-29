@@ -1,20 +1,30 @@
-import math
-from scipy.spatial.transform import Rotation as R
-import numpy as np
-from operator import add
+# MyUR3e.py
+# Written by Aengus Kennedy and Liam Campbell
+# Center for Engineering Education and Outreach
+# Summer of 2024
 
+# External Libraries:
+import math
+import numpy as np
+from scipy.spatial.transform import Rotation as R
+import threading
+
+# Internal Libraries:
+from ik_solver.ur_kinematics import URKinematics
+import TrajectoryPlanner
+
+# ROS2:
 import rclpy
 from rclpy.action import ActionClient
-import myur.ik_solver
+from rclpy.executors import MultiThreadedExecutor
+
+# ROS2 Msg Types:
+from sensor_msgs.msg import JointState
 from builtin_interfaces.msg import Duration
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 from control_msgs.action import FollowJointTrajectory
-from std_msgs.msg import Int32MultiArray
-
-# from control_msgs.msg import JointTolerance
-from sensor_msgs.msg import JointState
 from geometry_msgs.msg import WrenchStamped
-from myur.trajectory_planner import TrajectoryPlanner
+from std_msgs.msg import Int32MultiArray
 
 
 class MyUR3e(rclpy.node.Node):
@@ -28,7 +38,9 @@ class MyUR3e(rclpy.node.Node):
         gripper (Gripper): Instance for subscribing to and controlling the gripper.
     """
 
-    def __init__(self):
+    def __init__(
+        self, response_callback=None, result_callback=None, timer_callback=None
+    ):
         """
         Initialize the MyUR3e node.
         """
@@ -55,17 +67,23 @@ class MyUR3e(rclpy.node.Node):
         if self.joints is None or len(self.joints) == 0:
             raise Exception('"joints" parameter is required')
 
+        # set timer
+        self.timer = self.create_timer(1.0, self.get_timer_callback)
+
         self.get_logger().debug(f"Waiting for action server on {controller_name}")
 
         # Private Attributes
         self._action_client = ActionClient(self, FollowJointTrajectory, controller_name)
         if not self._action_client.wait_for_server(timeout_sec=10):
             self.__del__()
-            raise RuntimeError('Action server not available after waiting for 10 seconds. Check ROS UR Driver.')
+            raise RuntimeError(
+                "Action server not available after waiting for 10 seconds. Check ROS UR Driver."
+            )
         self._send_goal_future = None
         self._get_result_future = None
-        self._done = True
         self._id = 0
+        self._executor = MultiThreadedExecutor()
+        self._executor.add_node(self)
 
         # Public Attributes
         self.sim = TrajectoryPlanner()
@@ -73,6 +91,12 @@ class MyUR3e(rclpy.node.Node):
         self.joint_states = JointStates()
         self.tool_wrench = ToolWrench()
         self.gripper = Gripper()
+        self.done = True
+
+        # Set Functions
+        self.response_callback = response_callback
+        self.result_callback = result_callback
+        self.timer_callback = timer_callback
 
     def __del__(self):
         rclpy.shutdown()
@@ -81,41 +105,27 @@ class MyUR3e(rclpy.node.Node):
     #################### PUBLIC METHODS ####################
     ########################################################
 
-    def solve_ik(self, cords, q_guess=None):
+    #################### CLASS ACCESS METHODS ####################
+
+    def set_response_callback(self, user_function):
+        self.response_callback = user_function
+
+    def set_result_callback(self, user_function):
+        self.result_callback = user_function
+
+    def set_timer_callback(self, user_function, period=None):
+        if period:
+            self.timer.cancel()
+            self.timer = self.create_timer(period, self.get_timer_callback)
+        self.timer_callback = user_function
+
+    def clear_sim(self):
         """
-        Solve inverse kinematics for given coordinates.
-
-        Args:
-            cords (list): A list of coordinates, either [x, y, z, rx, ry, rz] or [x, y, z, qx, qy, qz, qw].
-            q_guess (list): A list of joint angles used to find the closest IK solution.
-
-        Returns:
-            list: Joint positions that achieve the given coordinates. [see self.joints]
+        Clear all trajectories in the simulation plot.
         """
-        # Get current pose of robot to use as q_guess if q_guess == None
-        if q_guess == None:
-            q_guess = self.joint_states.get_joints()["position"]
+        self.sim.clear_plot()
 
-        # if coordinates in euler format convert to quaternions
-        if len(cords) == 6:
-            if cords[3:6] == [0, 0, 0]:
-                cords[3:6] = [0.1, 0, 0]
-            r = R.from_euler("zyx", cords[3:6], degrees=True)
-            quat = r.as_quat(scalar_first=True).tolist()
-            cords = cords[0:3] + quat
-
-        return self.ik_solver.inverse(cords, False, q_guess=q_guess)
-
-    def move_gripper(self, POS, SPE, FOR):
-        """
-        Move the gripper to the specified position with given speed and force.
-
-        Args:
-            POS (int): Position for the gripper.
-            SPE (int): Speed for the gripper.
-            FOR (int): Force for the gripper.
-        """
-        self.gripper.control(POS, SPE, FOR)
+    #################### SERVICE METHODS ####################
 
     def get_gripper(self):
         """
@@ -153,13 +163,45 @@ class MyUR3e(rclpy.node.Node):
         """
         return self.tool_wrench.get()
 
-    def clear_sim(self):
-        """
-        Clear all trajectories in the simulation plot.
-        """
-        self.sim.clear_plot()
+    #################### MOVEMENT METHODS ####################
 
-    def move_global(self, coordinates, time_step=5, sim=True):
+    def solve_ik(self, cords, q_guess=None):
+        """
+        Solve inverse kinematics for given coordinates.
+
+        Args:
+            cords (list): A list of coordinates, either [x, y, z, rx, ry, rz] or [x, y, z, qx, qy, qz, qw].
+            q_guess (list): A list of joint angles used to find the closest IK solution.
+
+        Returns:
+            list: Joint positions that achieve the given coordinates. [see self.joints]
+        """
+        # Get current pose of robot to use as q_guess if q_guess is None
+        if q_guess is None:
+            q_guess = self.joint_states.get_joints()["position"]
+
+        # if coordinates in euler format convert to quaternions
+        if len(cords) == 6:
+            if cords[3:6] == [0, 0, 0]:
+                cords[3:6] = [0.1, 0, 0]
+            r = R.from_euler("zyx", cords[3:6], degrees=True)
+            quat = r.as_quat(scalar_first=True).tolist()
+            cords = cords[0:3] + quat
+
+        return self.ik_solver.inverse(cords, False, q_guess=q_guess)
+
+    def move_gripper(self, POS, SPE, FOR):
+        """
+        Move the gripper to the specified position with given speed and force.
+
+        Args:
+            POS (int): Position for the gripper.
+            SPE (int): Speed for the gripper.
+            FOR (int): Force for the gripper.
+        """
+        self.gripper.control(POS, SPE, FOR)
+
+    def move_global(self, coordinates, time_step=5, sim=True, wait=True):
         """
         Move the robot to specified global coordinates.
 
@@ -183,30 +225,11 @@ class MyUR3e(rclpy.node.Node):
                 f"IK solution not found for {joint_positions.count(None)}/{len(joint_positions)} points"
             )
         elif sim == False:
-            self.move_joints(joint_positions, time_step=time_step, sim=sim)
+            self.move_joints(joint_positions, time_step=time_step, sim=sim, wait=wait)
 
-    def move_joints(self, joint_positions, time_step=5, units="radians", sim=True):
-        """
-        Move the robot joints to the specified angular positions.
-
-        Args:
-            joint_positions (list): List of joint positions.
-            time_step (int): Time step between each position.
-            units (string): Units of angle ("radians","degrees").
-            sim (bool): True if no motion is desired, False if motion is desired.
-        """
-        if not sim:
-            self.get_logger().debug(f"Beginning Trajectory")
-            if units == "radians":
-                trajectory = self.make_trajectory(joint_positions, time_step=time_step)
-            elif units == "degrees":
-                trajectory = self.make_trajectory(
-                    joint_positions, units="degrees", time_step=time_step
-                )
-            self.execute_trajectory(trajectory)
-            self.wait(self)
-
-    def move_joints_r(self, joint_deltas, time_step=5, units="radians", sim=True):
+    def move_joints_r(
+        self, joint_deltas, time_step=5, units="radians", sim=True, wait=True
+    ):
         """
         Move the robot joints relative to their current or last position.
 
@@ -223,13 +246,96 @@ class MyUR3e(rclpy.node.Node):
                 sequence.append([sum(x) for x in zip(curr, delta)])
             else:
                 sequence.append([sum(x) for x in zip(sequence[i - 1], delta)])
-        self.move_joints(sequence, time_step=time_step, units=units, sim=sim)
+        self.move_joints(sequence, time_step=time_step, units=units, sim=sim, wait=wait)
+
+    def move_joints(
+        self, joint_positions, time_step=5, units="radians", sim=True, wait=True
+    ):
+        """
+        Move the robot joints to the specified angular positions.
+
+        Args:
+            joint_positions (list): List of joint positions.
+            time_step (int): Time step between each position.
+            units (string): Units of angle ("radians","degrees").
+            sim (bool): True if no motion is desired, False if motion is desired.
+        """
+        if not sim:
+            if units == "radians":
+                trajectory = self.make_trajectory(joint_positions, time_step=time_step)
+            elif units == "degrees":
+                trajectory = self.make_trajectory(
+                    joint_positions, units="degrees", time_step=time_step
+                )
+            self.execute_trajectory(trajectory)
+            if wait:
+                self.wait(self)
+            else:
+                spinthread = threading.Thread(
+                    target=lambda: self.spinfunction(self._id)
+                )
+                spinthread.start()
+
+    def stop(self):
+        stop_trajectory = self.make_trajectory(None, stop=True)
+        self.execute_trajectory(stop_trajectory, stop=True)
+        self.wait(self)
+        self.get_logger().info(f"Goal #{self._id}: Stopped")
+
+    def spinfunction(self, curr_id):
+
+        def check_id():
+            if curr_id is not self._id:
+                self.get_logger().info(
+                    f"Goal #{curr_id}: Replaced with Goal #{self._id}"
+                )
+                return True
+            return False
+
+        self._executor.spin_once()
+        if check_id():
+            return
+        while self._send_goal_future is None:  # screen None
+            self._executor.spin_once()
+            if check_id():
+                return
+        while not self._send_goal_future.done():  # check done
+            self._executor.spin_once()
+            if check_id():
+                return
+        if self._send_goal_future.result().accepted:
+            while self._get_result_future is None:  # screen None
+                self._executor.spin_once()
+                if check_id():
+                    return
+            while not self._get_result_future.done():  # check done
+                self._executor.spin_once()
+                if check_id():
+                    return
+            self._executor.spin_once()  # must spin once more for final result callback
+            error_code = self.error_code_to_str(
+                self._get_result_future.result().result.error_code
+            )
+        else:
+            self.get_logger().info(
+                f"Goal #{self._id}: rejected :( (Check driver logs for more info)"
+            )
+
+        self.get_logger().debug(f"Cleanly exiting async thread: {error_code}")
+
+        self._send_goal_future = None
+        self._get_result_future = None
+        self.done = True
 
     ########################################################
     #################### PRIVATE METHODS ###################
     ########################################################
 
-    def make_trajectory(self, joint_positions, units="radians", time_step=5):
+    #################### ROS CLIENT METHODS #################
+
+    def make_trajectory(
+        self, joint_positions, units="radians", time_step=5, stop=False
+    ):
         """
         Create a trajectory for the robot to follow.
 
@@ -243,79 +349,57 @@ class MyUR3e(rclpy.node.Node):
         """
         trajectory = JointTrajectory()
         trajectory.joint_names = self.joints
-        self._id += 1
 
-        for i, position in enumerate(joint_positions):
+        if not stop:
+            self._id += 1
+            for i, position in enumerate(joint_positions):
+                point = JointTrajectoryPoint()
+
+                if units == "radians":
+                    point.positions = position
+                elif units == "degrees":
+                    point.positions = self.pointdeg2rad(position)
+
+                if i == 0 and type(time_step) == tuple:
+                    time = time_step[0]
+                elif type(time_step) == tuple:
+                    time = time_step[0] + (i + 1) * time_step[1]
+                else:
+                    time = (i + 1) * time_step
+
+                sec = int(time - (time % 1))
+                nanosec = int(time % 1 * 1000000000)
+                point.time_from_start = Duration(sec=sec, nanosec=nanosec)
+                trajectory.points.append(point)
+        else:
+            positions = self.get_joints()["position"]
             point = JointTrajectoryPoint()
-
-            if units == "radians":
-                point.positions = position
-            elif units == "degrees":
-                point.positions = self.pointdeg2rad(position)
-
-            if i == 0 and type(time_step) == tuple:
-                time = time_step[0]
-            elif type(time_step) == tuple:
-                time = time_step[0] + (i + 1) * time_step[1]
-            else:
-                time = (i + 1) * time_step
-
-            sec = int(time - (time % 1))
-            nanosec = int(time % 1 * 1000000000)
-            point.time_from_start = Duration(sec=sec, nanosec=nanosec)
+            point.positions = positions
+            point.time_from_start = Duration(sec=0, nanosec=100000000)
             trajectory.points.append(point)
-
         return trajectory
 
-    def execute_trajectory(self, trajectory):
+    def execute_trajectory(self, trajectory, stop=False):
         """
         Execute the given trajectory.
 
         Args:
             trajectory (JointTrajectory): The trajectory to execute.
         """
-        self.get_logger().info(f"Goal #{self._id}: Executing")
-        self._done = False
+        if not stop:
+            self.get_logger().info(f"Goal #{self._id}: Executing")
+        self.done = False
 
         goal = FollowJointTrajectory.Goal()
         goal.trajectory = trajectory
 
         self._action_client.wait_for_server()
         self._send_goal_future = self._action_client.send_goal_async(goal)
+        this_future = self._send_goal_future
         self.get_logger().debug(f"Sent trajectory #{self._id}")
-        self._send_goal_future.add_done_callback(self.goal_response_callback)
-
-    def goal_response_callback(self, future):
-        """
-        Callback for when a goal response is received.
-
-        Args:
-            future (Future): The future object containing the goal response.
-        """
-        goal_handle = future.result()
-        if not goal_handle.accepted:
-            self.get_logger().info(
-                f"Goal #{self._id} rejected :( (Check driver logs for more info)"
-            )
-            return
-        self.get_logger().debug(f"Goal #{self._id} accepted :)")
-        self._get_result_future = goal_handle.get_result_async()
-        self._get_result_future.add_done_callback(self.get_result_callback)
-
-    def get_result_callback(self, future):
-        """
-        Callback for when a result is received.
-
-        Args:
-            future (Future): The future object containing the result.
-        """
-        result = future.result().result
-        self.get_logger().debug(
-            f"Done with result from #{self._id}: {self.error_code_to_str(result.error_code)}"
+        this_future.add_done_callback(
+            lambda this_future: self.goal_response_callback(this_future, self._id)
         )
-        if result.error_code == FollowJointTrajectory.Result.SUCCESSFUL:
-            self._done = True
-            self.get_logger().info(f"Goal #{self._id}: Completed")
 
     def wait(self, client):
         """
@@ -325,8 +409,67 @@ class MyUR3e(rclpy.node.Node):
             client (ActionClient): The action client.
         """
         rclpy.spin_once(client)
-        while not client._done:
+        while not client.done:
             rclpy.spin_once(client)
+
+    #################### CALLBACKS ####################
+
+    def get_timer_callback(self, *args, **kwargs):
+        if self.timer_callback:
+            self.timer_callback(*args, **kwargs)
+        else:
+            pass
+
+    def goal_response_callback(self, future, curr_id, *args, **kwargs):
+        """
+        Callback for when a goal response is received.
+
+        Args:
+            future (Future): The future object containing the goal response.
+        """
+        goal_handle = future.result()
+
+        if curr_id is self._id:
+            # user defined callback
+            if self.response_callback:
+                self.response_callback(goal_handle.accepted, *args, **kwargs)
+
+            if not goal_handle.accepted:
+                self.get_logger().info(
+                    f"Goal #{self._id} rejected :( (Check driver logs for more info)"
+                )
+                return
+            self.get_logger().debug(f"Goal #{self._id} accepted :)")
+            self._get_result_future = goal_handle.get_result_async()
+            this_future = self._get_result_future
+            this_future.add_done_callback(
+                lambda this_future: self.get_result_callback(this_future, curr_id)
+            )
+
+    def get_result_callback(self, future, curr_id, *args, **kwargs):
+        """
+        Callback for when a result is received.
+
+        Args:
+            future (Future): The future object containing the result.
+        """
+        result = future.result().result
+
+        if curr_id is self._id:
+            # user defined callback
+            if self.result_callback:
+                self.result_callback(result.error_code, *args, **kwargs)
+
+            self.get_logger().debug(
+                f"Done with result from #{self._id}: {self.error_code_to_str(result.error_code)}"
+            )
+            if result.error_code == FollowJointTrajectory.Result.SUCCESSFUL:
+                self.done = True
+                self.get_logger().info(f"Goal #{self._id}: Completed")
+
+    ########################################################
+    #################### STATIC METHODS ####################
+    ########################################################
 
     @staticmethod
     def pointdeg2rad(point):
@@ -381,7 +524,7 @@ class JointStates(rclpy.node.Node):
         )
         self.ik_solver = URKinematics("ur3e")
         self.states = None
-        self._done = False
+        self.done = False
 
     def listener_callback(self, msg):
         """
@@ -398,7 +541,7 @@ class JointStates(rclpy.node.Node):
         }
 
         self.states = data
-        self._done = True
+        self.done = True
 
     def get_joints(self):
         """
@@ -408,7 +551,7 @@ class JointStates(rclpy.node.Node):
             dict: The current joint states.
         """
         self.wait(self)
-        self._done = False
+        self.done = False
         return self.states
 
     def get_global(self):
@@ -419,7 +562,7 @@ class JointStates(rclpy.node.Node):
             list: The global position and orientation in Euler angles.
         """
         self.wait(self)
-        self._done = False
+        self.done = False
         cords_q = self.ik_solver.forward(self.states["position"])
         r = R.from_quat(cords_q[3:7], scalar_first=True)
         euler = r.as_euler("xyz", degrees=True).tolist()
@@ -434,7 +577,7 @@ class JointStates(rclpy.node.Node):
             client (Node): The node to wait for.
         """
         rclpy.spin_once(client)
-        while not client._done:
+        while not client.done:
             rclpy.spin_once(client)
             self.get_logger().debug(f"Waiting for joint_states_client")
 
@@ -461,7 +604,7 @@ class ToolWrench(rclpy.node.Node):
             10,
         )
         self.states = None
-        self._done = False
+        self.done = False
 
     def listener_callback(self, msg):
         """
@@ -477,7 +620,7 @@ class ToolWrench(rclpy.node.Node):
         }
 
         self.states = data
-        self._done = True
+        self.done = True
 
     def get(self):
         """
@@ -487,7 +630,7 @@ class ToolWrench(rclpy.node.Node):
             dict: The current wrench data.
         """
         self.wait(self)
-        self._done = False
+        self.done = False
         return self.states
 
     def wait(self, client):
@@ -498,7 +641,7 @@ class ToolWrench(rclpy.node.Node):
             client (Node): The node to wait for.
         """
         rclpy.spin_once(client)
-        while not client._done:
+        while not client.done:
             rclpy.spin_once(client)
             self.get_logger().debug(f"Waiting for wrench client")
 
@@ -523,7 +666,7 @@ class Gripper(rclpy.node.Node):
         self.publisher_ = self.create_publisher(Int32MultiArray, "/gripper/control", 10)
 
         self.states = None
-        self._done = False
+        self.done = False
 
     def listener_callback(self, msg):
         """
@@ -533,7 +676,7 @@ class Gripper(rclpy.node.Node):
             msg (Int32MultiArray): The gripper state message.
         """
         self.states = msg.data
-        self._done = True
+        self.done = True
 
     def get(self):
         """
@@ -543,7 +686,7 @@ class Gripper(rclpy.node.Node):
             list: The current state of the gripper.
         """
         self.wait(self)
-        self._done = False
+        self.done = False
         return self.states
 
     def control(self, POS, SPE, FOR):
@@ -559,7 +702,7 @@ class Gripper(rclpy.node.Node):
         msg.data = [POS, SPE, FOR]
         self.publisher_.publish(msg)
 
-    def wait(self, client):
+    def wait(self, client):  # class gripper
         """
         Wait for the gripper state to be updated.
 
@@ -567,6 +710,6 @@ class Gripper(rclpy.node.Node):
             client (Node): The node to wait for.
         """
         rclpy.spin_once(client)
-        while not client._done:
+        while not client.done:
             rclpy.spin_once(client)
             self.get_logger().debug(f"Waiting for gripper client")
