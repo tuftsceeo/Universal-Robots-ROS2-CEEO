@@ -1,7 +1,7 @@
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Int32MultiArray
-import robotiq_gripper
+from myur import robotiq_gripper
 import time
 
 IP = "130.64.17.5"
@@ -25,7 +25,7 @@ class Publisher(Node):
         self.gripper = robotiq_gripper.RobotiqGripper()
         self.gripper.connect(IP, 63352)
         print("Activating Gripper")
-        self.gripper.activate(auto_calibrate=False) # should maybe add control option to calibrate
+        self.gripper.activate(auto_calibrate=True) # should maybe add control option to calibrate
 
     def timer_callback(self):
         # every interval, create and publish gripper state
