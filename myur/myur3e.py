@@ -254,6 +254,16 @@ class MyUR3e(rclpy.node.Node):
         elif sim == False:
             self.move_joints(joint_positions, time_step=time_step, sim=sim, wait=wait)
 
+    def move_global_r(self, pos_deltas, time_step=5, sim=True, wait=True):
+        sequence = []
+        for i, delta in enumerate(pos_deltas):
+            if i == 0:
+                curr = self.read_global_pos()
+                sequence.append([sum(x) for x in zip(curr, delta)])
+            else:
+                sequence.append([sum(x) for x in zip(sequence[i - 1], delta)])
+        self.move_global(sequence, time_step=time_step, sim=sim, wait=wait)
+
     def move_joints_r(
         self, joint_deltas, time_step=5, units="radians", sim=True, wait=True
     ):
