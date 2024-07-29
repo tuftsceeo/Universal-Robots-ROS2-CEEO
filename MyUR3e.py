@@ -248,7 +248,6 @@ class MyUR3e(rclpy.node.Node):
             sim (bool): True if no motion is desired, False if motion is desired.
         """
         if not sim:
-            self.get_logger().debug(f"Beginning Trajectory")
             if units == "radians":
                 trajectory = self.make_trajectory(joint_positions, time_step=time_step)
             elif units == "degrees":
@@ -258,33 +257,48 @@ class MyUR3e(rclpy.node.Node):
             self.execute_trajectory(trajectory)
             if wait:
                 self.wait(self)
-            else:                
-                spinthread = threading.Thread(target = self.spinfunction)
+            else:
+                spinthread = threading.Thread(target = lambda: self.spinfunction(self._id))
                 spinthread.start()
 
     def stop(self):
-        curr_joints = None 
         stop_trajectory = self.make_trajectory(None, stop=True)
-        self.execute_trajectory(stop_trajectory)
+        self.execute_trajectory(stop_trajectory, stop=True)
         self.wait(self)
+        self.get_logger().info(f"Goal #{self._id}: Stopped")
 
-    def spinfunction(self):
+    def spinfunction(self,curr_id):
+
+        def check_id():
+            if curr_id is not self._id:
+                self.get_logger().info(f"Goal #{curr_id}: Replaced with Goal #{self._id}")
+                return True
+            return False
 
         self._executor.spin_once()
-        while self._send_goal_future is None:
+        if check_id(): return
+        while self._send_goal_future is None: # screen None
             self._executor.spin_once()
-        while not self._send_goal_future.done():
+            if check_id(): return
+        while not self._send_goal_future.done(): # check done
             self._executor.spin_once()
+            if check_id():
+                return
         if self._send_goal_future.result().accepted:
-            while self._get_result_future is None:
+            while self._get_result_future is None: # screen None
                 self._executor.spin_once()
-            while not self._get_result_future.done():
+                if check_id():
+                    return
+            while not self._get_result_future.done(): # check done
                 self._executor.spin_once()
+                if check_id():
+                    return
             self._executor.spin_once()  # must spin once more for final result callback
             error_code = self.error_code_to_str(self._get_result_future.result().result.error_code)
         else:
-            self.get_logger().info(f"Goal #{self._id} rejected :( (Check driver logs for more info)")
-        self.get_logger().debug(f"Exiting Async Thread: {error_code}")
+            self.get_logger().info(f"Goal #{self._id}: rejected :( (Check driver logs for more info)")
+
+        self.get_logger().debug(f"Cleanly exiting async thread: {error_code}")
 
         self._send_goal_future = None
         self._get_result_future = None
@@ -310,9 +324,9 @@ class MyUR3e(rclpy.node.Node):
         """
         trajectory = JointTrajectory()
         trajectory.joint_names = self.joints
-        self._id += 1
 
         if not stop:
+            self._id += 1
             for i, position in enumerate(joint_positions):
                 point = JointTrajectoryPoint()
 
@@ -332,19 +346,22 @@ class MyUR3e(rclpy.node.Node):
                 nanosec = int(time % 1 * 1000000000)
                 point.time_from_start = Duration(sec=sec, nanosec=nanosec)
                 trajectory.points.append(point)
-        # else:
-        #     #point = JointTrajectoryPoint()
-        #     trajectory.points.append(point)
+        else:
+            positions = self.get_joints()['position']
+            point = JointTrajectoryPoint()
+            point.positions = positions
+            point.time_from_start = Duration(sec=0, nanosec=100000000)
+            trajectory.points.append(point)
         return trajectory
 
-    def execute_trajectory(self, trajectory):
+    def execute_trajectory(self, trajectory,stop=False):
         """
         Execute the given trajectory.
 
         Args:
             trajectory (JointTrajectory): The trajectory to execute.
         """
-        self.get_logger().info(f"Goal #{self._id}: Executing")
+        if not stop: self.get_logger().info(f"Goal #{self._id}: Executing")
         self.done = False
 
         goal = FollowJointTrajectory.Goal()
@@ -352,8 +369,9 @@ class MyUR3e(rclpy.node.Node):
 
         self._action_client.wait_for_server()
         self._send_goal_future = self._action_client.send_goal_async(goal)
+        this_future = self._send_goal_future
         self.get_logger().debug(f"Sent trajectory #{self._id}")
-        self._send_goal_future.add_done_callback(self.goal_response_callback)
+        this_future.add_done_callback(lambda this_future: self.goal_response_callback(this_future, self._id))
 
     def wait(self, client):
         """
@@ -374,7 +392,7 @@ class MyUR3e(rclpy.node.Node):
         else:
             pass
 
-    def goal_response_callback(self, future, *args, **kwargs):
+    def goal_response_callback(self, future, curr_id, *args, **kwargs):
         """
         Callback for when a goal response is received.
 
@@ -383,20 +401,22 @@ class MyUR3e(rclpy.node.Node):
         """
         goal_handle = future.result()
 
-        # user defined callback
-        if self.response_callback:
-            self.response_callback(goal_handle.accepted, *args, **kwargs)
+        if curr_id is self._id:
+            # user defined callback
+            if self.response_callback:
+                self.response_callback(goal_handle.accepted, *args, **kwargs)
 
-        if not goal_handle.accepted:
-            self.get_logger().info(
-                f"Goal #{self._id} rejected :( (Check driver logs for more info)"
-            )
-            return
-        self.get_logger().debug(f"Goal #{self._id} accepted :)")
-        self._get_result_future = goal_handle.get_result_async()
-        self._get_result_future.add_done_callback(self.get_result_callback)
+            if not goal_handle.accepted:
+                self.get_logger().info(
+                    f"Goal #{self._id} rejected :( (Check driver logs for more info)"
+                )
+                return
+            self.get_logger().debug(f"Goal #{self._id} accepted :)")
+            self._get_result_future = goal_handle.get_result_async()
+            this_future = self._get_result_future
+            this_future.add_done_callback(lambda this_future: self.get_result_callback(this_future,curr_id))
 
-    def get_result_callback(self, future, *args, **kwargs):
+    def get_result_callback(self, future, curr_id, *args, **kwargs):
         """
         Callback for when a result is received.
 
@@ -405,16 +425,17 @@ class MyUR3e(rclpy.node.Node):
         """
         result = future.result().result
 
-        # user defined callback
-        if self.result_callback:
-            self.result_callback(result.error_code,*args, **kwargs)
+        if curr_id is self._id:
+            # user defined callback
+            if self.result_callback:
+                self.result_callback(result.error_code,*args, **kwargs)
 
-        self.get_logger().debug(
-            f"Done with result from #{self._id}: {self.error_code_to_str(result.error_code)}"
-        )
-        if result.error_code == FollowJointTrajectory.Result.SUCCESSFUL:
-            self.done = True
-            self.get_logger().info(f"Goal #{self._id}: Completed")
+            self.get_logger().debug(
+                f"Done with result from #{self._id}: {self.error_code_to_str(result.error_code)}"
+            )
+            if result.error_code == FollowJointTrajectory.Result.SUCCESSFUL:
+                self.done = True
+                self.get_logger().info(f"Goal #{self._id}: Completed")
 
     ########################################################
     #################### STATIC METHODS ####################
