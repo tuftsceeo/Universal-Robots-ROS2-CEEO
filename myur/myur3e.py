@@ -127,25 +127,43 @@ class MyUR3e(rclpy.node.Node):
 
     #################### SERVICE METHODS ####################
 
-    def get_gripper(self):
+    def read_gripper(self):
         """
         Get the current state of the gripper.
 
         Returns:
             list: [POS (int), SPE (int), FOR (int)]
         """
-        return list(self.gripper.get())
+        return self.gripper.get()
 
-    def get_joints(self):
+    def read_joints_pos(self):
         """
         Get the joint_states data.
 
         Returns:
             dict: {"name","position","velocity","effort"}
         """
-        return self.joint_states.get_joints()
+        return self.joint_states.get_joints()['position']
 
-    def get_global(self):
+    def read_joints_vel(self):
+        """
+        Get the joint_states data.
+
+        Returns:
+            dict: {"name","position","velocity","effort"}
+        """
+        return self.joint_states.get_joints()['velocity']
+
+    def read_joints_eff(self):
+        """
+        Get the joint_states data.
+
+        Returns:
+            dict: {"name","position","velocity","effort"}
+        """
+        return self.joint_states.get_joints()['effort']
+
+    def read_global_pos(self):
         """
         Get the global position of end effector.
 
@@ -154,14 +172,23 @@ class MyUR3e(rclpy.node.Node):
         """
         return self.joint_states.get_global()
 
-    def get_force(self):
+    def read_force(self):
         """
         Get the force data at the end effector.
 
         Returns:
             dict: {"force","torque"}
         """
-        return self.tool_wrench.get()
+        return self.tool_wrench.get()['force']
+
+    def read_torque(self):
+        """
+        Get the force data at the end effector.
+
+        Returns:
+            dict: {"force","torque"}
+        """
+        return self.tool_wrench.get()['torque']
 
     #################### MOVEMENT METHODS ####################
 
@@ -178,7 +205,7 @@ class MyUR3e(rclpy.node.Node):
         """
         # Get current pose of robot to use as q_guess if q_guess is None
         if q_guess is None:
-            q_guess = self.joint_states.get_joints()["position"]
+            q_guess = self.read_joints_pos()
 
         # if coordinates in euler format convert to quaternions
         if len(cords) == 6:
@@ -242,7 +269,7 @@ class MyUR3e(rclpy.node.Node):
         sequence = []
         for i, delta in enumerate(joint_deltas):
             if i == 0:
-                curr = self.get_joints()["position"]
+                curr = self.read_joints_pos()
                 sequence.append([sum(x) for x in zip(curr, delta)])
             else:
                 sequence.append([sum(x) for x in zip(sequence[i - 1], delta)])
@@ -687,7 +714,7 @@ class Gripper(rclpy.node.Node):
         """
         self.wait(self)
         self.done = False
-        return self.states
+        return list(self.states)
 
     def control(self, POS, SPE, FOR):
         """

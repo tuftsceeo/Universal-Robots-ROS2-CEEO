@@ -39,8 +39,11 @@ class Publisher(Node):
 
     def listener_callback(self, msg):
         try:
-            [POS,SPE,FOR] = msg.data
-            self.gripper.move(POS,SPE,FOR) # non blocking (move_and_wait_for_pos() is blocking)
+            [POS,SPE,FOR,BLOCK] = msg.data
+            if BLOCK:
+                self.gripper.move_and_wait_for_pos(POS, SPE, FOR)
+            else:
+                self.gripper.move(POS,SPE,FOR)
         except Exception as e:
             # is there a better way to return status of command?
             self.get_logger().info(f"Incorrect Gripper Control Format: [pos,spe,for]")
