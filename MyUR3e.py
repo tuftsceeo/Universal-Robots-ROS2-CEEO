@@ -167,8 +167,13 @@ class MyUR3e(rclpy.node.Node):
         Returns:
             list: Joint positions that achieve the given coordinates. [see self.joints]
         """
+<<<<<<< Updated upstream
         # Get current pose of robot to use as q_guess if q_guess == None
         if q_guess == None:
+=======
+        # Get current pose of robot to use as q_guess if q_guess is None
+        if q_guess is None:
+>>>>>>> Stashed changes
             q_guess = self.joint_states.get_joints()["position"]
 
         # if coordinates in euler format convert to quaternions
@@ -205,9 +210,9 @@ class MyUR3e(rclpy.node.Node):
         joint_positions = []
         for i, cord in enumerate(coordinates):
             if i == 0:
-                joint_positions.append(self.solve_ik(cord))
+                joint_positions.append(self.solve_ik(cord).tolist())
             else:
-                joint_positions.append(self.solve_ik(cord, joint_positions[i - 1]))
+                joint_positions.append(self.solve_ik(cord, joint_positions[i - 1]).tolist())
 
         self.sim.add_trajectory(coordinates, joint_positions)
 
@@ -216,6 +221,10 @@ class MyUR3e(rclpy.node.Node):
                 f"IK solution not found for {joint_positions.count(None)}/{len(joint_positions)} points"
             )
         elif sim == False:
+<<<<<<< Updated upstream
+=======
+            joint_positions
+>>>>>>> Stashed changes
             self.move_joints(joint_positions, time_step=time_step, sim=sim,wait=wait)
 
     def move_joints_r(self, joint_deltas, time_step=5, units="radians", sim=True, wait=True):
@@ -263,7 +272,11 @@ class MyUR3e(rclpy.node.Node):
                 spinthread.start()
 
     def stop(self):
+<<<<<<< Updated upstream
         curr_joints = 
+=======
+        curr_joints = None 
+>>>>>>> Stashed changes
         stop_trajectory = self.make_trajectory(None, stop=True)
         self.execute_trajectory(stop_trajectory)
         self.wait(self)
