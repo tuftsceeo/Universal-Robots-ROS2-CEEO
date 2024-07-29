@@ -10,8 +10,8 @@ from scipy.spatial.transform import Rotation as R
 import threading
 
 # Internal Libraries:
-from ik_solver.ur_kinematics import URKinematics
-import TrajectoryPlanner
+from myur.ik_solver.ur_kinematics import URKinematics
+from myur.trajectory_planner import TrajectoryPlanner
 
 # ROS2:
 import rclpy
