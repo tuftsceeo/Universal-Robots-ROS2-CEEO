@@ -45,8 +45,7 @@ class Publisher(Node):
             else:
                 self.gripper.move(POS,SPE,FOR)
         except Exception as e:
-            # is there a better way to return status of command?
-            self.get_logger().info(f"Incorrect Gripper Control Format: [pos,spe,for]")
+            self.get_logger().info(f"Incorrect Gripper Control Format: [POS,SPE,FOR]")
 
 
 def main():

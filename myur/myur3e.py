@@ -217,7 +217,7 @@ class MyUR3e(rclpy.node.Node):
 
         return self.ik_solver.inverse(cords, False, q_guess=q_guess)
 
-    def move_gripper(self, POS, SPE, FOR):
+    def move_gripper(self, POS, SPE, FOR,BLOCK=True):
         """
         Move the gripper to the specified position with given speed and force.
 
@@ -226,7 +226,7 @@ class MyUR3e(rclpy.node.Node):
             SPE (int): Speed for the gripper.
             FOR (int): Force for the gripper.
         """
-        self.gripper.control(POS, SPE, FOR)
+        self.gripper.control(POS, SPE, FOR,BLOCK)
 
     def move_global(self, coordinates, time_step=5, sim=True, wait=True):
         """
@@ -716,7 +716,7 @@ class Gripper(rclpy.node.Node):
         self.done = False
         return list(self.states)
 
-    def control(self, POS, SPE, FOR):
+    def control(self, POS, SPE, FOR,BLOCK):
         """
         Control the gripper with the given position, speed, and force.
 
@@ -726,7 +726,10 @@ class Gripper(rclpy.node.Node):
             FOR (int): Force for the gripper.
         """
         msg = Int32MultiArray()
-        msg.data = [POS, SPE, FOR]
+        if BLOCK:
+            msg.data = [POS, SPE, FOR,1]
+        else:
+            msg.data = [POS, SPE, FOR, 0]
         self.publisher_.publish(msg)
 
     def wait(self, client):  # class gripper
