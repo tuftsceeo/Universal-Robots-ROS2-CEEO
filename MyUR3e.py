@@ -205,9 +205,9 @@ class MyUR3e(rclpy.node.Node):
         joint_positions = []
         for i, cord in enumerate(coordinates):
             if i == 0:
-                joint_positions.append(self.solve_ik(cord).tolist())
+                joint_positions.append(self.solve_ik(cord))
             else:
-                joint_positions.append(self.solve_ik(cord, joint_positions[i - 1]).tolist())
+                joint_positions.append(self.solve_ik(cord, joint_positions[i - 1]))
 
         self.sim.add_trajectory(coordinates, joint_positions)
 
