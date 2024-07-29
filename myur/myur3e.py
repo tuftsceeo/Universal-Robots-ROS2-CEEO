@@ -143,7 +143,7 @@ class MyUR3e(rclpy.node.Node):
         Returns:
             dict: {"name","position","velocity","effort"}
         """
-        return self.joint_states.get_joints()['position']
+        return self.joint_states.get_joints()["position"]
 
     def read_joints_vel(self):
         """
@@ -152,7 +152,7 @@ class MyUR3e(rclpy.node.Node):
         Returns:
             dict: {"name","position","velocity","effort"}
         """
-        return self.joint_states.get_joints()['velocity']
+        return self.joint_states.get_joints()["velocity"]
 
     def read_joints_eff(self):
         """
@@ -161,7 +161,7 @@ class MyUR3e(rclpy.node.Node):
         Returns:
             dict: {"name","position","velocity","effort"}
         """
-        return self.joint_states.get_joints()['effort']
+        return self.joint_states.get_joints()["effort"]
 
     def read_global_pos(self):
         """
@@ -179,7 +179,7 @@ class MyUR3e(rclpy.node.Node):
         Returns:
             dict: {"force","torque"}
         """
-        return self.tool_wrench.get()['force']
+        return self.tool_wrench.get()["force"]
 
     def read_torque(self):
         """
@@ -188,7 +188,7 @@ class MyUR3e(rclpy.node.Node):
         Returns:
             dict: {"force","torque"}
         """
-        return self.tool_wrench.get()['torque']
+        return self.tool_wrench.get()["torque"]
 
     #################### MOVEMENT METHODS ####################
 
@@ -217,7 +217,7 @@ class MyUR3e(rclpy.node.Node):
 
         return self.ik_solver.inverse(cords, False, q_guess=q_guess)
 
-    def move_gripper(self, POS, SPE, FOR,BLOCK=True):
+    def move_gripper(self, POS, SPE, FOR, BLOCK=True):
         """
         Move the gripper to the specified position with given speed and force.
 
@@ -226,7 +226,7 @@ class MyUR3e(rclpy.node.Node):
             SPE (int): Speed for the gripper.
             FOR (int): Force for the gripper.
         """
-        self.gripper.control(POS, SPE, FOR,BLOCK)
+        self.gripper.control(POS, SPE, FOR, BLOCK)
 
     def move_global(self, coordinates, time_step=5, sim=True, wait=True):
         """
@@ -592,7 +592,7 @@ class JointStates(rclpy.node.Node):
         self.done = False
         cords_q = self.ik_solver.forward(self.states["position"])
         r = R.from_quat(cords_q[3:7], scalar_first=True)
-        euler = r.as_euler("xyz", degrees=True).tolist()
+        euler = r.as_euler("zyx", degrees=True).tolist()
         cords = cords_q[0:3].tolist() + euler
         return cords
 
@@ -716,7 +716,7 @@ class Gripper(rclpy.node.Node):
         self.done = False
         return list(self.states)
 
-    def control(self, POS, SPE, FOR,BLOCK):
+    def control(self, POS, SPE, FOR, BLOCK):
         """
         Control the gripper with the given position, speed, and force.
 
@@ -727,7 +727,7 @@ class Gripper(rclpy.node.Node):
         """
         msg = Int32MultiArray()
         if BLOCK:
-            msg.data = [POS, SPE, FOR,1]
+            msg.data = [POS, SPE, FOR, 1]
         else:
             msg.data = [POS, SPE, FOR, 0]
         self.publisher_.publish(msg)

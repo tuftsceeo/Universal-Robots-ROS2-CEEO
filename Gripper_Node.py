@@ -25,7 +25,9 @@ class Publisher(Node):
         self.gripper = robotiq_gripper.RobotiqGripper()
         self.gripper.connect(IP, 63352)
         print("Activating Gripper")
-        self.gripper.activate(auto_calibrate=True) # should maybe add control option to calibrate
+        self.gripper.activate(
+            auto_calibrate=True
+        )  # should maybe add control option to calibrate
 
     def timer_callback(self):
         # every interval, create and publish gripper state
@@ -39,11 +41,11 @@ class Publisher(Node):
 
     def listener_callback(self, msg):
         try:
-            [POS,SPE,FOR,BLOCK] = msg.data
+            [POS, SPE, FOR, BLOCK] = msg.data
             if BLOCK:
                 self.gripper.move_and_wait_for_pos(POS, SPE, FOR)
             else:
-                self.gripper.move(POS,SPE,FOR)
+                self.gripper.move(POS, SPE, FOR)
         except Exception as e:
             self.get_logger().info(f"Incorrect Gripper Control Format: [POS,SPE,FOR]")
 
@@ -54,6 +56,7 @@ def main():
     rclpy.spin(chatter)  # The code stays here forever, publishing strings
     chatter.destroy_node()
     rclpy.shutdown()
+
 
 if __name__ == "__main__":
     main()
