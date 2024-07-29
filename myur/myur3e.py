@@ -228,7 +228,7 @@ class MyUR3e(rclpy.node.Node):
         """
         self.gripper.control(POS, SPE, FOR, BLOCK)
 
-    def move_global(self, coordinates, time_step=5, sim=True, wait=True):
+    def move_global(self, coordinates, time_step=5, sim=False, wait=True):
         """
         Move the robot to specified global coordinates.
 
@@ -254,7 +254,7 @@ class MyUR3e(rclpy.node.Node):
         elif sim == False:
             self.move_joints(joint_positions, time_step=time_step, sim=sim, wait=wait)
 
-    def move_global_r(self, pos_deltas, time_step=5, sim=True, wait=True):
+    def move_global_r(self, pos_deltas, time_step=5, sim=False, wait=True):
         sequence = []
         for i, delta in enumerate(pos_deltas):
             if i == 0:
@@ -265,7 +265,7 @@ class MyUR3e(rclpy.node.Node):
         self.move_global(sequence, time_step=time_step, sim=sim, wait=wait)
 
     def move_joints_r(
-        self, joint_deltas, time_step=5, units="radians", sim=True, wait=True
+        self, joint_deltas, time_step=5, units="radians", sim=False, wait=True
     ):
         """
         Move the robot joints relative to their current or last position.
@@ -286,7 +286,7 @@ class MyUR3e(rclpy.node.Node):
         self.move_joints(sequence, time_step=time_step, units=units, sim=sim, wait=wait)
 
     def move_joints(
-        self, joint_positions, time_step=5, units="radians", sim=True, wait=True
+        self, joint_positions, time_step=5, units="radians", sim=False, wait=True
     ):
         """
         Move the robot joints to the specified angular positions.
