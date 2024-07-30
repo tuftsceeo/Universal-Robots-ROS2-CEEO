@@ -20,7 +20,13 @@ Clone this repository to your local machine:
 
 ```bash
 git clone https://github.com/tuftsceeo/Universal-Robots-ROS2-CEEO
+```
+
+Install / update all dependencies:
+
+```bash
 cd Universal-Robots-ROS2-CEEO
+pip install .
 ```
 
 ## Installation
