@@ -324,7 +324,7 @@ class MyUR3e(rclpy.node.Node):
             sim (bool): True if no motion is desired, False if motion is desired.
         """
         if interp is not None:
-            joint_positions = self.interpolate(trajectory,interp)
+            joint_positions = self.interpolate(joint_positions,interp)
 
         if not sim:
             if units == "radians":
