@@ -29,11 +29,16 @@ cd Universal-Robots-ROS2-CEEO
 pip install .
 ```
 
-## Installation
+## Setup
 
-Run the launch.py file:
+In a new terminal, launch the ROS2 UR Driver: (leave this running)
 ```bash
-python3 launch.py
+ros2 launch ur_robot_driver ur_control.launch.py ur_type:=ur3e robot_ip:=130.64.17.5 launch_rviz:=false
+```
+
+In a new terminal, launch the ROS Gripper Node: (leave this running)
+```bash
+python3 Gripper_Node.py
 ```
 
 Verify you can interact with the ROS2 topics:
