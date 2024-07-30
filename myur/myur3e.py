@@ -7,6 +7,7 @@
 import math
 import numpy as np
 from scipy.spatial.transform import Rotation as R
+from scipy.interpolate import make_interp_spline
 import threading
 
 # Internal Libraries:
@@ -228,7 +229,7 @@ class MyUR3e(rclpy.node.Node):
         """
         self.gripper.control(POS, SPE, FOR, BLOCK)
 
-    def move_global(self, coordinates, time_step=5, sim=False, wait=True):
+    def move_global(self, coordinates, time_step=5, sim=False, wait=True, interp=None):
         """
         Move the robot to specified global coordinates.
 
@@ -238,7 +239,27 @@ class MyUR3e(rclpy.node.Node):
             time_step (int): Time step between each coordinate.
             sim (bool): True if no motion is desired, False if motion is desired.
         """
+        if interp is not None:
+            if interp == "spline":
+                k = 3
+            elif interp == "linear":
+                k = 1
+            points = np.array(coordinates)
+            # Calculate distances between consecutive points (Euclidean distance for position)
+            distances = np.linalg.norm(np.diff(points[:, :6], axis=0), axis=1)
+            # Compute cumulative arc-length
+            arc_length = np.zeros(len(points))
+            arc_length[1:] = np.cumsum(distances)
+            # Create a spline that interpolates all 7 dimensions based on arc_length
+            spline = make_interp_spline(arc_length, points, k=k)  # k=3 for cubic spline
+            # Define a new arc_length range for a smooth trajectory
+            arc_length_new = np.linspace(arc_length.min(), arc_length.max(), 100)
+            # Evaluate the spline for the new arc_length range
+            coordinates = list(spline(arc_length_new))
+
+
         joint_positions = []
+        time_step = []  # for distant dependent time step options
         for i, cord in enumerate(coordinates):
             if i == 0:
                 joint_positions.append(self.solve_ik(cord))
@@ -297,6 +318,7 @@ class MyUR3e(rclpy.node.Node):
             units (string): Units of angle ("radians","degrees").
             sim (bool): True if no motion is desired, False if motion is desired.
         """
+
         if not sim:
             if units == "radians":
                 trajectory = self.make_trajectory(joint_positions, time_step=time_step)
@@ -320,7 +342,6 @@ class MyUR3e(rclpy.node.Node):
         self.get_logger().info(f"Goal #{self._id}: Stopped")
 
     def spinfunction(self, curr_id):
-
         def check_id():
             if curr_id is not self._id:
                 self.get_logger().info(
