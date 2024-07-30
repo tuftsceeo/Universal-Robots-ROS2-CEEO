@@ -218,6 +218,27 @@ class MyUR3e(rclpy.node.Node):
 
         return self.ik_solver.inverse(cords, False, q_guess=q_guess)
 
+    def interpolate(trajectory, method="linear"):
+        if method == "spline":
+            k = 3
+        elif method == "linear":
+            k = 1
+        points = np.array(trajectory)
+        # Calculate distances between consecutive points (Euclidean distance for position)
+        distances = np.linalg.norm(np.diff(points[:, :6], axis=0), axis=1)
+        # Compute cumulative arc-length
+        arc_length = np.zeros(len(points))
+        arc_length[1:] = np.cumsum(distances)
+        # Create a spline that interpolates all 6 dimensions based on arc_length
+        try:
+            spline = make_interp_spline(arc_length, points, k=k)  # k=3 for cubic spline
+        except ValueError:
+            raise ValueError("Spline requires four or more trajectory points")
+        # Define a new arc_length range for a smooth trajectory
+        arc_length_new = np.linspace(arc_length.min(), arc_length.max(), 100)
+        # Evaluate the spline for the new arc_length range
+        return spline(arc_length_new).tolist()
+
     def move_gripper(self, POS, SPE, FOR, BLOCK=True):
         """
         Move the gripper to the specified position with given speed and force.
@@ -240,23 +261,8 @@ class MyUR3e(rclpy.node.Node):
             sim (bool): True if no motion is desired, False if motion is desired.
         """
         if interp is not None:
-            if interp == "spline":
-                k = 2
-            elif interp == "linear":
-                k = 1
-            points = np.array(coordinates)
-            # Calculate distances between consecutive points (Euclidean distance for position)
-            distances = np.linalg.norm(np.diff(points[:, :6], axis=0), axis=1)
-            # Compute cumulative arc-length
-            arc_length = np.zeros(len(points))
-            arc_length[1:] = np.cumsum(distances)
-            # Create a spline that interpolates all 7 dimensions based on arc_length
-            spline = make_interp_spline(arc_length, points, k=k)  # k=3 for cubic spline
-            # Define a new arc_length range for a smooth trajectory
-            arc_length_new = np.linspace(arc_length.min(), arc_length.max(), 100)
-            # Evaluate the spline for the new arc_length range
-            coordinates = spline(arc_length_new).tolist()
-
+            if len(coordinates[0]) == 7: raise ValueError("Cannot interpolate quaternion rotations")
+            coordinates = self.interpolate(coordinates, interp)
 
         joint_positions = []
         for i, cord in enumerate(coordinates):
@@ -306,7 +312,7 @@ class MyUR3e(rclpy.node.Node):
         self.move_joints(sequence, time_step=time_step, units=units, sim=sim, wait=wait)
 
     def move_joints(
-        self, joint_positions, time_step=5, units="radians", sim=False, wait=True
+        self, joint_positions, time_step=5, units="radians", sim=False, wait=True, interp=None
     ):
         """
         Move the robot joints to the specified angular positions.
@@ -317,6 +323,8 @@ class MyUR3e(rclpy.node.Node):
             units (string): Units of angle ("radians","degrees").
             sim (bool): True if no motion is desired, False if motion is desired.
         """
+        if interp is not None:
+            joint_positions = self.interpolate(trajectory,interp)
 
         if not sim:
             if units == "radians":
