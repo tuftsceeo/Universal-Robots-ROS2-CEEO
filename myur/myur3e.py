@@ -5,6 +5,8 @@
 
 # External Libraries:
 import math
+import json
+import os
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 from scipy.interpolate import make_interp_spline
@@ -85,6 +87,8 @@ class MyUR3e(rclpy.node.Node):
         self._id = 0
         self._executor = MultiThreadedExecutor()
         self._executor.add_node(self)
+        self._json_file = "trajectory_dictionary.json"
+        self._trajectories = {}
 
         # Public Attributes
         self.sim = TrajectoryPlanner()
@@ -101,6 +105,8 @@ class MyUR3e(rclpy.node.Node):
 
     def __del__(self):
         rclpy.shutdown()
+        with open(self._json_file, "w") as file:
+            json.dump(self._trajectories, file, indent=4)
 
     ########################################################
     #################### PUBLIC METHODS ####################
@@ -125,6 +131,47 @@ class MyUR3e(rclpy.node.Node):
         Clear all trajectories in the simulation plot.
         """
         self.sim.clear_plot()
+
+    def save_traj(self, name, coordinates):
+        """
+        Adds a trajectory to the collection and saves it to the JSON file.
+
+        :param name: The name of the trajectory.
+        :param coordinates: A list of coordinates defining the trajectory.
+        """
+        self._trajectories[name] = coordinates
+        try:
+            with open(self._json_file, "w") as file:
+                json.dump(self._trajectories, file, indent=4)
+        except IOError as e:
+            print(f"An error occurred while saving the file: {e}")
+
+    def get_traj(self, name):
+        """
+        Loads all trajectories from the JSON file and retrieves a specific one by name.
+
+        :param name: The name of the trajectory.
+        :return: The list of coordinates for the trajectory, or None if not found.
+        """
+        if os.path.exists(self._json_file):
+            try:
+                with open(self._json_file, "r") as file:
+                    self._trajectories = json.load(file)
+            except (IOError, json.JSONDecodeError) as e:
+                print(f"An error occurred while loading the file: {e}")
+                self._trajectories = {}
+        return self._trajectories.get(name)
+
+    def clear_traj(self):
+        """
+        Clears all trajectories from memory and the JSON file.
+        """
+        self._trajectories = {}
+        if os.path.exists(self._json_file):
+            try:
+                os.remove(self._json_file)
+            except IOError as e:
+                print(f"An error occurred while deleting the file: {e}")
 
     #################### SERVICE METHODS ####################
 
@@ -221,6 +268,8 @@ class MyUR3e(rclpy.node.Node):
     def interpolate(self, trajectory, method="linear"):
         if method == "spline":
             k = 3
+        elif method == "arc":
+            k = 2
         elif method == "linear":
             k = 1
         points = np.array(trajectory)
@@ -233,7 +282,10 @@ class MyUR3e(rclpy.node.Node):
         try:
             spline = make_interp_spline(arc_length, points, k=k)  # k=3 for cubic spline
         except ValueError:
-            raise ValueError("Spline requires four or more trajectory points")
+            if method == "spline":
+                raise ValueError("Spline requires four or more trajectory points")
+            elif method == "arc":
+                raise ValueError("Arc requires 3 or more trajectory points")
         # Define a new arc_length range for a smooth trajectory
         arc_length_new = np.linspace(arc_length.min(), arc_length.max(), 100)
         # Evaluate the spline for the new arc_length range
@@ -260,8 +312,12 @@ class MyUR3e(rclpy.node.Node):
             time_step (int): Time step between each coordinate.
             sim (bool): True if no motion is desired, False if motion is desired.
         """
+        if type(coordinates) == str:
+            coordinates = self.get_traj(coordinates)
+
         if interp is not None:
-            if len(coordinates[0]) == 7: raise ValueError("Cannot interpolate quaternion rotations")
+            if len(coordinates[0]) == 7:
+                raise ValueError("Cannot interpolate quaternion rotations")
             coordinates = self.interpolate(coordinates, interp)
 
         joint_positions = []
@@ -278,7 +334,9 @@ class MyUR3e(rclpy.node.Node):
                 f"IK solution not found for {joint_positions.count(None)}/{len(joint_positions)} points"
             )
         elif sim == False:
-            self.move_joints(joint_positions, time_step=time_step, sim=sim, wait=wait)
+            self.move_joints(
+                joint_positions, time_step=time_step, sim=sim, wait=wait, interp=None
+            )
 
     def move_global_r(self, pos_deltas, time_step=5, sim=False, wait=True):
         sequence = []
@@ -312,7 +370,13 @@ class MyUR3e(rclpy.node.Node):
         self.move_joints(sequence, time_step=time_step, units=units, sim=sim, wait=wait)
 
     def move_joints(
-        self, joint_positions, time_step=5, units="radians", sim=False, wait=True, interp=None
+        self,
+        joint_positions,
+        time_step=5,
+        units="radians",
+        sim=False,
+        wait=True,
+        interp=None,
     ):
         """
         Move the robot joints to the specified angular positions.
@@ -323,8 +387,11 @@ class MyUR3e(rclpy.node.Node):
             units (string): Units of angle ("radians","degrees").
             sim (bool): True if no motion is desired, False if motion is desired.
         """
+        if type(joint_positions) == str:
+            joint_positions = self.get_traj(joint_positions)
+
         if interp is not None:
-            joint_positions = self.interpolate(joint_positions,interp)
+            joint_positions = self.interpolate(joint_positions, interp)
 
         if not sim:
             if units == "radians":
