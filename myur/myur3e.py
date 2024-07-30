@@ -241,7 +241,7 @@ class MyUR3e(rclpy.node.Node):
 
     #################### MOVEMENT METHODS ####################
 
-    def record(self,name,sleep=1,threshold=0.001):
+    def record(self, name, sleep=1, threshold=0.001):
         start = False
         first_pose = self.read_joints_pos()
 
@@ -261,13 +261,15 @@ class MyUR3e(rclpy.node.Node):
             curr_pose = self.read_joints_pos()
             trajectory.append(curr_pose)
             time.sleep(sleep)
-            distance = np.linalg.norm(np.array(curr_pose) - np.array(self.read_joints_pos()))
+            distance = np.linalg.norm(
+                np.array(curr_pose) - np.array(self.read_joints_pos())
+            )
             if abs(distance) < threshold:
                 recording = False
 
         print(f"Saved trajectory as: {name}")
 
-        self.save_traj(name,trajectory)
+        self.save_traj(name, trajectory)
 
     def solve_ik(self, cords, q_guess=None):
         """
