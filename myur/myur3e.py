@@ -7,6 +7,7 @@
 import math
 import json
 import os
+import time
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 from scipy.interpolate import make_interp_spline
@@ -239,6 +240,34 @@ class MyUR3e(rclpy.node.Node):
         return self.tool_wrench.get()["torque"]
 
     #################### MOVEMENT METHODS ####################
+
+    def record(self,name,sleep=1,threshold=0.001):
+        start = False
+        first_pose = self.read_joints_pos()
+
+        while not start:
+            curr_pose = self.read_joints_pos()
+            distance = np.linalg.norm(np.array(first_pose) - np.array(curr_pose))
+            if abs(distance) > threshold:
+                start = True
+
+        print("Starting trajectory")
+
+        recording = True
+        trajectory = []
+        trajectory.append(first_pose)
+
+        while recording:
+            curr_pose = self.read_joints_pos()
+            trajectory.append(curr_pose)
+            time.sleep(sleep)
+            distance = np.linalg.norm(np.array(curr_pose) - np.array(self.read_joints_pos()))
+            if abs(distance) < threshold:
+                recording = False
+
+        print(f"Saved trajectory as: {name}")
+
+        self.save_traj(name,trajectory)
 
     def solve_ik(self, cords, q_guess=None):
         """
