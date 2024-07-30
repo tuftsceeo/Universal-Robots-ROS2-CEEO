@@ -241,7 +241,7 @@ class MyUR3e(rclpy.node.Node):
         """
         if interp is not None:
             if interp == "spline":
-                k = 3
+                k = 2
             elif interp == "linear":
                 k = 1
             points = np.array(coordinates)
@@ -259,7 +259,6 @@ class MyUR3e(rclpy.node.Node):
 
 
         joint_positions = []
-        time_step = []  # for distant dependent time step options
         for i, cord in enumerate(coordinates):
             if i == 0:
                 joint_positions.append(self.solve_ik(cord))
