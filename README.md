@@ -46,21 +46,22 @@ def main():
         robot = MyUR3e()
 
         # Get live data from the robot
-        print(robot.joint_states.get_joints()) # Joint Positions, Velocities, Efforts
-        print(robot.joint_states.get_global()) # Global End Effector Position
-        print(robot.tool_wrench.get()) # End Effector Force, Torque
-        print(robot.gripper.get()) # Gripper Position, Speed, Force
+        print(robot.read_joints_pos()) # Joint Positions
+        print(robot.read_global_pos()) # Global End Effector Position
+        print(robot.read_force()) # End Effector Force
+        print(robot.read_gripper()) # Gripper Position, Speed, Force
 
         # Open and close the gripper
-        robot.gripper.move(0,255,255) # Open
-        robot.gripper.move(255,255,255) # Close
+        robot.move_gripper(0,255,255) # Open
+        robot.move_gripper(255,255,255) # Close
 
-        # Simulate the Arm:
-        coordinates = [0.5, 0.5, 0.3, 0.0, 0.0, 0.0] # [x,y,z,rx,ry,rz]
-        robot.move_global(coordinates, sim=True)
+        # Create a point or trajectory
+        point = [[0.5, 0.5, 0.3, 0.0, 0.0, 0.0]] # [x,y,z,rx,ry,rz]
+        trajectory = [[0.5, 0.5, 0.3, 0.0, 0.0, 0.0],
+                      [0.4, 0.4, 0.3, 0.0, 0.0, 0.0]]
 
         # Move the Arm:
-        robot.move_global(coordinates,time_step=5)
+        robot.move_global(trajectory)
 
     finally:
         del robot
