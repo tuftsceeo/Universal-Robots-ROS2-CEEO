@@ -255,7 +255,7 @@ class MyUR3e(rclpy.node.Node):
             # Define a new arc_length range for a smooth trajectory
             arc_length_new = np.linspace(arc_length.min(), arc_length.max(), 100)
             # Evaluate the spline for the new arc_length range
-            coordinates = list(spline(arc_length_new))
+            coordinates = spline(arc_length_new).tolist()
 
 
         joint_positions = []
