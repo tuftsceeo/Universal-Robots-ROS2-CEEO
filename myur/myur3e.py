@@ -218,7 +218,7 @@ class MyUR3e(rclpy.node.Node):
 
         return self.ik_solver.inverse(cords, False, q_guess=q_guess)
 
-    def interpolate(trajectory, method="linear"):
+    def interpolate(self, trajectory, method="linear"):
         if method == "spline":
             k = 3
         elif method == "linear":
