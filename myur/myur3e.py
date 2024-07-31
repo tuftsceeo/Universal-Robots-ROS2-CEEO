@@ -322,7 +322,6 @@ class MyUR3e(rclpy.node.Node):
         Args:
             cords (list): A list of coordinates, either [x, y, z, rx, ry, rz] or [x, y, z, qx, qy, qz, qw].
             q_guess (list, optional): A list of joint angles used to find the closest IK solution.
-
         Returns:
             list: Joint positions that achieve the given coordinates. [see self.joints]
         """
@@ -340,8 +339,16 @@ class MyUR3e(rclpy.node.Node):
 
         return self.ik_solver.inverse(cords, False, q_guess=q_guess)
 
-    def interpolate(self, trajectory, method="linear"):
+    def interpolate(self, trajectory, method="linear", fidelity=100):
         '''
+        Interpolate between points in a trajectory.
+
+        Args:
+            trajectory (list): trajectory to be interpolated
+            method (string, optional): either linear, arc, or spline
+            fidelity (int, optional): number of desired points across the trajectory
+        Returns:
+            list: interpolated trajectory
         '''
         if method == "spline":
             k = 3
@@ -364,7 +371,7 @@ class MyUR3e(rclpy.node.Node):
             elif method == "arc":
                 raise ValueError("Arc requires 3 or more trajectory points")
         # Define a new arc_length range for a smooth trajectory
-        arc_length_new = np.linspace(arc_length.min(), arc_length.max(), 100)
+        arc_length_new = np.linspace(arc_length.min(), arc_length.max(), fidelity)
         # Evaluate the spline for the new arc_length range
         return spline(arc_length_new).tolist()
 
@@ -386,8 +393,11 @@ class MyUR3e(rclpy.node.Node):
         Args:
             coordinates (list): List of coordinates to move to.
                 either [x, y, z, rx, ry, rz] or [x, y, z, qx, qy, qz, qw].
-            time_step (int): Time step between each coordinate.
-            sim (bool): True if no motion is desired, False if motion is desired.
+            time_step (float/tuple, optional): If float, time step between each coordinate. If
+                tuple, first float represents time to first pos, second float is all following steps.
+            sim (bool, optional): True if no motion is desired, False if motion is desired.
+            wait (bool, optional): True if blocking is desired, False if non blocking is desired.
+            interp (string, optional): Options are None, linear, arc, spline.
         """
         if type(coordinates) == str:
             coordinates = self.get_trajectory(coordinates)
@@ -416,6 +426,17 @@ class MyUR3e(rclpy.node.Node):
             )
 
     def move_global_r(self, pos_deltas, time_step=5, sim=False, wait=True):
+        """
+        Move the robot relative to where it was using global axes.
+
+        Args:
+            pos_deltas (list): List of relative movements.
+                either [x, y, z, rx, ry, rz] or [x, y, z, qx, qy, qz, qw].
+            time_step (float/tuple, optional): If float, time step between each coordinate. If
+                tuple, first float represents time to first pos, second float is all following steps.
+            sim (bool, optional): True if no motion is desired, False if motion is desired.
+            wait (bool, optional): True if blocking is desired, False if non blocking is desired.
+        """
         sequence = []
         for i, delta in enumerate(pos_deltas):
             if i == 0:
@@ -429,13 +450,14 @@ class MyUR3e(rclpy.node.Node):
         self, joint_deltas, time_step=5, units="radians", sim=False, wait=True
     ):
         """
-        Move the robot joints relative to their current or last position.
+        Move the robot relative to where it was using joint angles.
 
         Args:
-            joint_positions (list): List of relative joint positions.
-            time_step (int): Time step between each position.
-            units (string): Units of angle ("radians","degrees").
-            sim (bool): True if no motion is desired, False if motion is desired.
+            joint_deltas (list): List of relative movements. [j1,j2,j3,j4,j5,j6].
+            time_step (float/tuple, optional): If float, time step between each coordinate. If
+                tuple, first float represents time to first pos, second float is all following steps.
+            sim (bool, optional): True if no motion is desired, False if motion is desired.
+            wait (bool, optional): True if blocking is desired, False if non blocking is desired.
         """
         sequence = []
         for i, delta in enumerate(joint_deltas):
@@ -459,10 +481,13 @@ class MyUR3e(rclpy.node.Node):
         Move the robot joints to the specified angular positions.
 
         Args:
-            joint_positions (list): List of joint positions.
-            time_step (int): Time step between each position.
-            units (string): Units of angle ("radians","degrees").
-            sim (bool): True if no motion is desired, False if motion is desired.
+            joint_positions (list): List of joint positions. [j1,j2,j3,j4,j5,j6].
+            time_step (float/tuple, optional): If float, time step between each coordinate. If
+                tuple, first float represents time to first pos, second float is all following steps.
+            units (string, optional): radians or degrees
+            sim (bool, optional): True if no motion is desired, False if motion is desired.
+            wait (bool, optional): True if blocking is desired, False if non blocking is desired.
+            interp (string, optional): Options are None, linear, arc, spline.
         """
         if type(joint_positions) == str:
             joint_positions = self.get_trajectory(joint_positions)
@@ -482,17 +507,32 @@ class MyUR3e(rclpy.node.Node):
                 self.wait(self)
             else:
                 spinthread = threading.Thread(
-                    target=lambda: self.spinfunction(self._id)
+                    target=lambda: self.spin_async(self._id)
                 )
                 spinthread.start()
 
     def stop(self):
+        """
+        Stop the robot at its current pose. For use in non blocking scenarios.
+        """
         stop_trajectory = self.make_trajectory(None, stop=True)
         self.execute_trajectory(stop_trajectory, stop=True)
         self.wait(self)
         self.get_logger().info(f"Goal #{self._id}: Stopped")
 
-    def spinfunction(self, curr_id):
+    ########################################################
+    #################### PRIVATE METHODS ###################
+    ########################################################
+
+    #################### ROS CLIENT METHODS #################
+
+    def spin_async(self, curr_id):
+        """
+        Spin the ROS Node asynchronously using threads.
+
+        Args:
+            curr_id (int): ID number representing unique goals.
+        """
         def check_id():
             if curr_id is not self._id:
                 self.get_logger().info(
@@ -536,12 +576,6 @@ class MyUR3e(rclpy.node.Node):
         self._get_result_future = None
         self.done = True
 
-    ########################################################
-    #################### PRIVATE METHODS ###################
-    ########################################################
-
-    #################### ROS CLIENT METHODS #################
-
     def make_trajectory(
         self, joint_positions, units="radians", time_step=5, stop=False
     ):
@@ -550,8 +584,9 @@ class MyUR3e(rclpy.node.Node):
 
         Args:
             joint_positions (list): List of joint positions.
-            units (str): Units for the joint positions, either 'radians' or 'degrees'.
-            time_step (int): Time step between each position.
+            units (string, optional): Units for the joint positions, either 'radians' or 'degrees'.
+            time_step (int, optional): Time step between each position.
+            stop (bool, optional): if True creates a stop trajectory.
 
         Returns:
             JointTrajectory: The created trajectory.
@@ -594,6 +629,7 @@ class MyUR3e(rclpy.node.Node):
 
         Args:
             trajectory (JointTrajectory): The trajectory to execute.
+            stop (bool, optional): if True creates a stop trajectory.
         """
         if not stop:
             self.get_logger().info(f"Goal #{self._id}: Executing")
@@ -612,7 +648,7 @@ class MyUR3e(rclpy.node.Node):
 
     def wait(self, client):
         """
-        Wait for the action to complete.
+        Wait for the action to complete. Blocking.
 
         Args:
             client (ActionClient): The action client.
@@ -624,6 +660,9 @@ class MyUR3e(rclpy.node.Node):
     #################### CALLBACKS ####################
 
     def get_timer_callback(self, *args, **kwargs):
+        """
+        Callback initiated at a set interval.
+        """
         if self.timer_callback:
             self.timer_callback(*args, **kwargs)
         else:
