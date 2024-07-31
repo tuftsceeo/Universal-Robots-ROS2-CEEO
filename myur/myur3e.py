@@ -87,6 +87,7 @@ class MyUR3e(rclpy.node.Node):
         self._id = 0
         self._executor = MultiThreadedExecutor()
         self._executor.add_node(self)
+        self.trajectory_file = "trajectory_dictionary.json"
         try:
             with open(self.trajectory_file, "r") as file:
                 self._trajectories = json.load(file)
@@ -94,11 +95,11 @@ class MyUR3e(rclpy.node.Node):
             raise IOError(f"An error occurred while loading the file: {e}")
 
         # Public Attributes
-        self.trajectory_file = "trajectory_dictionary.json"
         self.sim = TrajectoryPlanner()
         self.ik_solver = URKinematics("ur3e")
         self.joint_states = JointStates()
         self.tool_wrench = ToolWrench()
+        self.dashboard = Dashboard()
         self.gripper = Gripper()
         self.done = True
 
@@ -205,6 +206,20 @@ class MyUR3e(rclpy.node.Node):
                 os.remove(self.trajectory_file)
             except IOError as e:
                 print(f"An error occurred while deleting the file: {e}")
+
+    def health_scan(self):
+        """
+        Get the current safety and robot mode.
+
+        Returns:
+            list: [Healthy (bool),Safety Mode (str), Robot Mode (str)]
+        """
+        health = self.dashboard.get()
+        if health[0] is not 1 or health[1] not in [5,7]: 
+            health = self.error_code_to_str(health)
+            self.get_logger().info(f"System Error: {health[0]} and {health[1]}")
+            return False
+        return True
 
     #################### SERVICE METHODS ####################
 
@@ -548,19 +563,23 @@ class MyUR3e(rclpy.node.Node):
         if check_id():
             return
         while self._send_goal_future is None:  # screen None
+            if not self.health_scan(): return
             self._executor.spin_once()
             if check_id():
                 return
         while not self._send_goal_future.done():  # check done
+            if not self.health_scan(): return
             self._executor.spin_once()
             if check_id():
                 return
         if self._send_goal_future.result().accepted:
             while self._get_result_future is None:  # screen None
+                if not self.health_scan(): return
                 self._executor.spin_once()
                 if check_id():
                     return
             while not self._get_result_future.done():  # check done
+                if not self.health_scan(): return
                 self._executor.spin_once()
                 if check_id():
                     return
@@ -658,6 +677,7 @@ class MyUR3e(rclpy.node.Node):
         """
         rclpy.spin_once(client)
         while not client.done:
+            if not self.health_scan(): return
             rclpy.spin_once(client)
 
     #################### CALLBACKS ####################
@@ -758,6 +778,32 @@ class MyUR3e(rclpy.node.Node):
             return "PATH_TOLERANCE_VIOLATED"
         if error_code == FollowJointTrajectory.Result.GOAL_TOLERANCE_VIOLATED:
             return "GOAL_TOLERANCE_VIOLATED"
+        elif type(error_code) == list:
+            if error_code[0] == 1: safety_mode = "NORMAL"
+            elif error_code[0] == 2: safety_mode = "REDUCED"
+            elif error_code[0] == 3: safety_mode = "PROTECTIVE_STOP"
+            elif error_code[0] == 4: safety_mode = "RECOVERY"
+            elif error_code[0] == 5: safety_mode = "SAFEGUARD_STOP"
+            elif error_code[0] == 6: safety_mode = "SYSTEM_EMERGENCY_STOP"
+            elif error_code[0] == 7: safety_mode = "ROBOT_EMERGENCY_STOP"
+            elif error_code[0] == 8: safety_mode = "VIOLATION"
+            elif error_code[0] == 9: safety_mode = "FAULT"
+            elif error_code[0] == 10: safety_mode = "VALIDATE_JOINT_ID"
+            elif error_code[0] == 11: safety_mode = "UNDEFINED_SAFETY_MODE"
+            elif error_code[0] == 12: safety_mode = "AUTOMATIC_MODE_SAFEGUARD_STOP"
+            elif error_code[0] == 13: safety_mode = "SYSTEM_THREE_POSITION_ENABLING_STOP"
+            if error_code[1] == -1: robot_mode = "NO_CONTROLLER"
+            elif error_code[1] == 0: robot_mode = "DISCONNECTED"
+            elif error_code[1] == 1: robot_mode = "CONFIRM_SAFETY"
+            elif error_code[1] == 2: robot_mode = "BOOTING"
+            elif error_code[1] == 3: robot_mode = "POWER_OFF"
+            elif error_code[1] == 4: robot_mode = "POWER_ON"
+            elif error_code[1] == 5: robot_mode = "IDLE"
+            elif error_code[1] == 6: robot_mode = "BACKDRIVE"
+            elif error_code[1] == 7: robot_mode = "RUNNING"
+            elif error_code[1] == 8: robot_mode = "UPDATING_FIRMWARE"
+            return [safety_mode,robot_mode]
+
 
 
 class JointStates(rclpy.node.Node):
@@ -967,3 +1013,73 @@ class Gripper(rclpy.node.Node):
         while not client.done:
             rclpy.spin_once(client)
             self.get_logger().debug(f"Waiting for gripper client")
+
+
+class Dashboard(rclpy.node.Node):
+    """
+    Subscribe and publish to Gripper topics.
+    """
+
+    def __init__(self):
+        """
+        Initialize the dashboard node.
+        """
+        super().__init__("ur_dashboard_client")
+        self.safety_sub = self.create_subscription(
+            Int32MultiArray,
+            "/io_and_status_controller/safety_mode",
+            self.safety_sub_callback,
+            10,
+        )
+
+        self.robot_sub = self.create_subscription(
+            Int32MultiArray,
+            "/io_and_status_controller/robot_mode",
+            self.robot_sub_callback,
+            10,
+        )
+
+        self.states = []
+        self.safety_done = False
+        self.robot_done = False
+
+    def safety_sub_callback(self, msg):
+        """
+        Callback for when safety sub data is received.
+
+        Args:
+            msg (Int32MultiArray): The safety mode message.
+        """
+        self.states[0] = msg.data
+        self.safety_done = True
+
+    def robot_sub_callback(self, msg):
+        """
+        Callback for when robot sub data is received.
+
+        Args:
+            msg (Int32MultiArray): The robot mode message.
+        """
+        self.states[1] = msg.data
+        self.robot_done = True
+
+    def get(self):
+        """
+        Get the current safety and robot mode.
+
+        Returns:
+            list: The current safety and robot mode of the UR arm.
+        """
+        self.wait()
+        self.safety_done = False
+        self.robot_done = False
+        return self.states
+
+    def wait(self):  # class gripper
+        """
+        Wait for the dashboard to be updated.
+        """
+        rclpy.spin_once(self)
+        while not self.safety_done and not self.robot_done:
+            rclpy.spin_once(self)
+            self.get_logger().debug(f"Waiting for dashboard client")
