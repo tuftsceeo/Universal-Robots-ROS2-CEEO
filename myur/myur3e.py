@@ -71,6 +71,19 @@ class MyUR3e(rclpy.node.Node):
         self.joints = self.get_parameter("joints").value
         if self.joints is None or len(self.joints) == 0:
             raise Exception('"joints" parameter is required')
+        
+        # Experimental Tolerance Setting:
+        self.params = {
+            "constraints.goal_time": 0.5,
+            "constraints.joints.joint1.state_tolerance": 0.01,
+            "constraints.joints.joint1.goal_tolerance": 0.05,
+            "constraints.joints.joint2.state_tolerance": 0.01,
+            "constraints.joints.joint2.goal_tolerance": 0.05,
+            "constraints.joints.joint3.state_tolerance": 0.01,
+            "constraints.joints.joint3.goal_tolerance": 0.05,
+        }
+        for param, value in self.params.items():
+            self.set_parameters([rclpy.parameter.Parameter(param, rclpy.Parameter.Type.DOUBLE, value)])
 
         self.get_logger().debug(f"Waiting for action server on {controller_name}")
         self._action_client = ActionClient(self, FollowJointTrajectory, controller_name)
@@ -183,7 +196,7 @@ class MyUR3e(rclpy.node.Node):
                 with open(self.trajectory_file, "r") as file:
                     self._trajectories = json.load(file)
             except (IOError, json.JSONDecodeError) as e:
-                print(f"An error occurred while loading the file: {e}")
+                raise IOError(f"An error occurred while loading the file: {e}")
                 self._trajectories = {}
 
         trajectory = self._trajectories.get(name)
