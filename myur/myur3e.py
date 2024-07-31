@@ -52,6 +52,7 @@ class MyUR3e(rclpy.node.Node):
         super().__init__("remote_control_client")
         self.get_logger().debug("Initializing MyUR3e...")
 
+        # Action Client Setup
         self.declare_parameter("controller_name", "scaled_joint_trajectory_controller")
         self.declare_parameter(
             "joints",
@@ -71,27 +72,25 @@ class MyUR3e(rclpy.node.Node):
         if self.joints is None or len(self.joints) == 0:
             raise Exception('"joints" parameter is required')
 
-        # set timer
-        self.timer = self.create_timer(1.0, self.get_timer_callback)
-
         self.get_logger().debug(f"Waiting for action server on {controller_name}")
-
-        # Private Attributes
         self._action_client = ActionClient(self, FollowJointTrajectory, controller_name)
         if not self._action_client.wait_for_server(timeout_sec=10):
             self.__del__()
             raise RuntimeError(
                 "Action server not available after waiting for 10 seconds. Check ROS UR Driver."
             )
+
+        # Private Attributes
+        self._timer = self.create_timer(1.0, self.get_timer_callback)
         self._send_goal_future = None
         self._get_result_future = None
         self._id = 0
         self._executor = MultiThreadedExecutor()
         self._executor.add_node(self)
-        self._json_file = "trajectory_dictionary.json"
         self._trajectories = {}
 
         # Public Attributes
+        self.trajectory_file = "trajectory_dictionary.json"
         self.sim = TrajectoryPlanner()
         self.ik_solver = URKinematics("ur3e")
         self.joint_states = JointStates()
@@ -105,8 +104,11 @@ class MyUR3e(rclpy.node.Node):
         self.timer_callback = timer_callback
 
     def __del__(self):
+        # De-init rclpy
         rclpy.shutdown()
-        with open(self._json_file, "w") as file:
+
+        # One last write to trajectory file to be safe
+        with open(self.trajectory_file, "w") as file:
             json.dump(self._trajectories, file, indent=4)
 
     ########################################################
@@ -116,15 +118,34 @@ class MyUR3e(rclpy.node.Node):
     #################### CLASS ACCESS METHODS ####################
 
     def set_response_callback(self, user_function):
+        """
+        Define function to be called when goal is recieved by the action server.
+
+        Args:
+            user_function (function)
+        """
         self.response_callback = user_function
 
     def set_result_callback(self, user_function):
+        """
+        Define function to be called when goal is completed by the action server.
+
+        Args:
+            user_function (function)
+        """
         self.result_callback = user_function
 
     def set_timer_callback(self, user_function, period=None):
+        """
+        Define function to be called at set intervals.
+
+        Args:
+            user_function (function)
+            period (float, optional): period of the timer
+        """
         if period:
-            self.timer.cancel()
-            self.timer = self.create_timer(period, self.get_timer_callback)
+            self._timer.cancel()
+            self._timer = self.create_timer(period, self.get_timer_callback)
         self.timer_callback = user_function
 
     def clear_sim(self):
@@ -133,44 +154,52 @@ class MyUR3e(rclpy.node.Node):
         """
         self.sim.clear_plot()
 
-    def save_traj(self, name, coordinates):
+    def save_trajectory(self, name, trajectory):
         """
-        Adds a trajectory to the collection and saves it to the JSON file.
+        Adds a trajectory to the collection and saves it to the local JSON file.
 
-        :param name: The name of the trajectory.
-        :param coordinates: A list of coordinates defining the trajectory.
+        Args:
+            name (string): name that will be key of the stored coordinates.
+            trajectory (list): coordinates making the trajectory
         """
-        self._trajectories[name] = coordinates
+        self._trajectories[name] = trajectory
         try:
-            with open(self._json_file, "w") as file:
+            with open(self.trajectory_file, "w") as file:
                 json.dump(self._trajectories, file, indent=4)
         except IOError as e:
             print(f"An error occurred while saving the file: {e}")
 
-    def get_traj(self, name):
+    def get_trajectory(self, name):
         """
         Loads all trajectories from the JSON file and retrieves a specific one by name.
 
-        :param name: The name of the trajectory.
-        :return: The list of coordinates for the trajectory, or None if not found.
+        Args:
+            name (string): name corresponding to trajectory
+        Returns:
+            list: coordinates
         """
-        if os.path.exists(self._json_file):
+        if os.path.exists(self.trajectory_file):
             try:
-                with open(self._json_file, "r") as file:
+                with open(self.trajectory_file, "r") as file:
                     self._trajectories = json.load(file)
             except (IOError, json.JSONDecodeError) as e:
                 print(f"An error occurred while loading the file: {e}")
                 self._trajectories = {}
-        return self._trajectories.get(name)
+
+        trajectory = self._trajectories.get(name)
+
+        if trajectory is None: raise ValueError(f"No trajectory found with the name: {name}")
+
+        return trajectory
 
     def clear_traj(self):
         """
         Clears all trajectories from memory and the JSON file.
         """
         self._trajectories = {}
-        if os.path.exists(self._json_file):
+        if os.path.exists(self.trajectory_file):
             try:
-                os.remove(self._json_file)
+                os.remove(self.trajectory_file)
             except IOError as e:
                 print(f"An error occurred while deleting the file: {e}")
 
@@ -187,34 +216,34 @@ class MyUR3e(rclpy.node.Node):
 
     def read_joints_pos(self):
         """
-        Get the joint_states data.
+        Get the angle of each joint in radians.
 
         Returns:
-            dict: {"name","position","velocity","effort"}
+            list: [Pan, Lift, Elbow, Wrist 1, Wrist 2, Wrist 3]
         """
         return self.joint_states.get_joints()["position"]
 
     def read_joints_vel(self):
         """
-        Get the joint_states data.
+        Get the angular velocity of each joint in radians/s.
 
         Returns:
-            dict: {"name","position","velocity","effort"}
+            list: [Pan, Lift, Elbow, Wrist 1, Wrist 2, Wrist 3]
         """
         return self.joint_states.get_joints()["velocity"]
 
     def read_joints_eff(self):
         """
-        Get the joint_states data.
+        Get the effort of each joint.
 
         Returns:
-            dict: {"name","position","velocity","effort"}
+            list: [Pan, Lift, Elbow, Wrist 1, Wrist 2, Wrist 3]
         """
         return self.joint_states.get_joints()["effort"]
 
     def read_global_pos(self):
         """
-        Get the global position of end effector.
+        Get the global position of end effector in meters.
 
         Returns:
             list: [x,y,z,rx,ry,rz]
@@ -223,25 +252,38 @@ class MyUR3e(rclpy.node.Node):
 
     def read_force(self):
         """
-        Get the force data at the end effector.
+        Get the force exerted on the end effector in Newtons (relative to the end effector).
 
         Returns:
-            dict: {"force","torque"}
+            list: [x,y,z]
         """
         return self.tool_wrench.get()["force"]
 
     def read_torque(self):
         """
-        Get the force data at the end effector.
+        Get the torque exerted on the end effector in Newton Meters (relative to the end effector).
 
         Returns:
-            dict: {"force","torque"}
+            list: [x,y,z]
         """
         return self.tool_wrench.get()["torque"]
 
     #################### MOVEMENT METHODS ####################
 
     def record(self, name, sleep=1, threshold=0.001):
+        """
+        Record the live motion of the arm using joint angles. Recording automatically starts 
+        when the arm moves and stops when the arm is at rest. The trajectory will be saved to
+        the trajectory dictionary using the supplied name.
+
+        Args:
+            name (string): key of the trajectory
+            sleep(float, optional): interval at which the position will be recorded
+            threshold(int, optional): threshold for movement
+        Returns:
+            list: recorded trajectory
+            
+        """
         start = False
         first_pose = self.read_joints_pos()
 
@@ -269,7 +311,9 @@ class MyUR3e(rclpy.node.Node):
 
         print(f"Saved trajectory as: {name}")
 
-        self.save_traj(name, trajectory)
+        self.save_trajectory(name, trajectory)
+
+        return trajectory
 
     def solve_ik(self, cords, q_guess=None):
         """
@@ -277,7 +321,7 @@ class MyUR3e(rclpy.node.Node):
 
         Args:
             cords (list): A list of coordinates, either [x, y, z, rx, ry, rz] or [x, y, z, qx, qy, qz, qw].
-            q_guess (list): A list of joint angles used to find the closest IK solution.
+            q_guess (list, optional): A list of joint angles used to find the closest IK solution.
 
         Returns:
             list: Joint positions that achieve the given coordinates. [see self.joints]
@@ -297,6 +341,8 @@ class MyUR3e(rclpy.node.Node):
         return self.ik_solver.inverse(cords, False, q_guess=q_guess)
 
     def interpolate(self, trajectory, method="linear"):
+        '''
+        '''
         if method == "spline":
             k = 3
         elif method == "arc":
@@ -344,7 +390,7 @@ class MyUR3e(rclpy.node.Node):
             sim (bool): True if no motion is desired, False if motion is desired.
         """
         if type(coordinates) == str:
-            coordinates = self.get_traj(coordinates)
+            coordinates = self.get_trajectory(coordinates)
 
         if interp is not None:
             if len(coordinates[0]) == 7:
@@ -419,7 +465,7 @@ class MyUR3e(rclpy.node.Node):
             sim (bool): True if no motion is desired, False if motion is desired.
         """
         if type(joint_positions) == str:
-            joint_positions = self.get_traj(joint_positions)
+            joint_positions = self.get_trajectory(joint_positions)
 
         if interp is not None:
             joint_positions = self.interpolate(joint_positions, interp)
