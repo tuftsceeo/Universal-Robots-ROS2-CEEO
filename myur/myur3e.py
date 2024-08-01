@@ -566,23 +566,23 @@ class MyUR3e(rclpy.node.Node):
         if check_id():
             return
         while self._send_goal_future is None:  # screen None
-            if not self.health_scan(): return
+            #if not self.health_scan(): return
             self._executor.spin_once()
             if check_id():
                 return
         while not self._send_goal_future.done():  # check done
-            if not self.health_scan(): return
+            #if not self.health_scan(): return
             self._executor.spin_once()
             if check_id():
                 return
         if self._send_goal_future.result().accepted:
             while self._get_result_future is None:  # screen None
-                if not self.health_scan(): return
+                #if not self.health_scan(): return
                 self._executor.spin_once()
                 if check_id():
                     return
             while not self._get_result_future.done():  # check done
-                if not self.health_scan(): return
+                #if not self.health_scan(): return
                 self._executor.spin_once()
                 if check_id():
                     return
@@ -680,7 +680,7 @@ class MyUR3e(rclpy.node.Node):
         """
         rclpy.spin_once(client)
         while not client.done:
-            if not self.health_scan(): return
+            #if not self.health_scan(): return
             rclpy.spin_once(client)
 
     ################################ CALLBACKS ################################
@@ -1017,7 +1017,8 @@ class Gripper(rclpy.node.Node):
             self.get_logger().debug(f"Waiting for gripper client")
 
 
-from ur_msgs.srv import RobotMode, SafetyMode
+# TODO: install ur_msgs on JupyterHub ROS, until then Dashboard will not work
+# from ur_msgs.srv import RobotMode, SafetyMode
 
 class Dashboard(rclpy.node.Node):
     """
