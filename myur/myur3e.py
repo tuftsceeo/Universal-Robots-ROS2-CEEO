@@ -92,7 +92,7 @@ class MyUR3e(rclpy.node.Node):
             with open(self.trajectory_file, "r") as file:
                 self._trajectories = json.load(file)
         except (IOError, json.JSONDecodeError) as e:
-            raise IOError(f"An error occurred while loading the file: {e}")
+            pass
 
         # Public Attributes
         self.sim = TrajectoryPlanner()
@@ -1017,6 +1017,8 @@ class Gripper(rclpy.node.Node):
             self.get_logger().debug(f"Waiting for gripper client")
 
 
+from ur_msgs.srv import RobotMode, SafetyMode
+
 class Dashboard(rclpy.node.Node):
     """
     Subscribe and publish to Gripper topics.
@@ -1028,14 +1030,14 @@ class Dashboard(rclpy.node.Node):
         """
         super().__init__("ur_dashboard_client")
         self.safety_sub = self.create_subscription(
-            Int32MultiArray,
+            SafetyMode,
             "/io_and_status_controller/safety_mode",
             self.safety_sub_callback,
             10,
         )
 
         self.robot_sub = self.create_subscription(
-            Int32MultiArray,
+            RobotMode,
             "/io_and_status_controller/robot_mode",
             self.robot_sub_callback,
             10,
@@ -1077,7 +1079,7 @@ class Dashboard(rclpy.node.Node):
         Returns:
             list: The current safety and robot mode of the UR arm.
         """
-        #self.wait()
+        # self.wait()
         # self.safety_done = False
         # self.robot_done = False
         return self.states
