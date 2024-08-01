@@ -87,7 +87,7 @@ class MyUR3e(rclpy.node.Node):
         self._id = 0
         self._executor = MultiThreadedExecutor()
         self._executor.add_node(self)
-        self.trajectory_file = "trajectory_dictionary.json"
+        self.trajectory_file = "trajectory_file.json"
         try:
             with open(self.trajectory_file, "r") as file:
                 self._trajectories = json.load(file)
@@ -808,7 +808,6 @@ class MyUR3e(rclpy.node.Node):
             return [safety_mode,robot_mode]
 
 
-
 class JointStates(rclpy.node.Node):
     """
     Subscribe to the joint_states topic.
@@ -1042,9 +1041,14 @@ class Dashboard(rclpy.node.Node):
             10,
         )
 
+        self.timer = self.create_timer(.25, self.timer_callback)
+
         self.states = []
         self.safety_done = False
         self.robot_done = False
+
+    def timer_callback(self):
+        rclpy.spin_once(self)
 
     def safety_sub_callback(self, msg):
         """
@@ -1073,12 +1077,12 @@ class Dashboard(rclpy.node.Node):
         Returns:
             list: The current safety and robot mode of the UR arm.
         """
-        self.wait()
-        self.safety_done = False
-        self.robot_done = False
+        #self.wait()
+        # self.safety_done = False
+        # self.robot_done = False
         return self.states
 
-    def wait(self):  # class gripper
+    def wait(self):
         """
         Wait for the dashboard to be updated.
         """
