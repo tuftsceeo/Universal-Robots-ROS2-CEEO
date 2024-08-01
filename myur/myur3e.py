@@ -116,11 +116,11 @@ class MyUR3e(rclpy.node.Node):
         with open(self.trajectory_file, "w") as file:
             json.dump(self._trajectories, file, indent=4)
 
-    ########################################################
-    #################### PUBLIC METHODS ####################
-    ########################################################
+    ###########################################################################
+    ############################# PUBLIC METHODS ##############################
+    ###########################################################################
 
-    #################### CLASS ACCESS METHODS ####################
+    ########################### CLASS ACCESS METHODS ##########################
 
     def set_response_callback(self, user_function):
         """
@@ -215,13 +215,13 @@ class MyUR3e(rclpy.node.Node):
             list: [Healthy (bool),Safety Mode (str), Robot Mode (str)]
         """
         health = self.dashboard.get()
-        if health[0] is not 1 or health[1] not in [5,7]: 
+        if health[0] != 1 or health[1] not in [5,7]: 
             health = self.error_code_to_str(health)
             self.get_logger().info(f"System Error: {health[0]} and {health[1]}")
             return False
         return True
 
-    #################### SERVICE METHODS ####################
+    ############################# SERVICE METHODS #############################
 
     def read_gripper(self):
         """
@@ -286,7 +286,7 @@ class MyUR3e(rclpy.node.Node):
         """
         return self.tool_wrench.get()["torque"]
 
-    #################### MOVEMENT METHODS ####################
+    ############################# MOVEMENT METHODS ############################
 
     def record(self, name, sleep=1, threshold=0.001):
         """
@@ -302,6 +302,11 @@ class MyUR3e(rclpy.node.Node):
             list: recorded trajectory
             
         """
+
+        # IDEA: taking data points once every period can result in very close physical points, especially at the
+        # end of the trajectory. this is a problem when using cubic splines. instead could take high frequency data 
+        # and find evenly evenly divided datapoints by physical distance?
+
         start = False
         first_pose = self.read_joints_pos()
 
@@ -443,7 +448,7 @@ class MyUR3e(rclpy.node.Node):
                 joint_positions, time_step=time_step, sim=sim, wait=wait, interp=None
             )
 
-    def move_global_r(self, pos_deltas, time_step=5, sim=False, wait=True):
+    def move_global_r(self, pos_deltas, time_step=5, sim=False, wait=True, interp=None):
         """
         Move the robot relative to where it was using global axes.
 
@@ -462,10 +467,10 @@ class MyUR3e(rclpy.node.Node):
                 sequence.append([sum(x) for x in zip(curr, delta)])
             else:
                 sequence.append([sum(x) for x in zip(sequence[i - 1], delta)])
-        self.move_global(sequence, time_step=time_step, sim=sim, wait=wait)
+        self.move_global(sequence, time_step=time_step, sim=sim, wait=wait, interp=interp)
 
     def move_joints_r(
-        self, joint_deltas, time_step=5, units="radians", sim=False, wait=True
+        self, joint_deltas, time_step=5, units="radians", sim=False, wait=True, interp=None
     ):
         """
         Move the robot relative to where it was using joint angles.
@@ -477,6 +482,9 @@ class MyUR3e(rclpy.node.Node):
             sim (bool, optional): True if no motion is desired, False if motion is desired.
             wait (bool, optional): True if blocking is desired, False if non blocking is desired.
         """
+        # BUG: when degrees are used in this feature the arm behaves unexpectedly, needs urgent fixing !!!
+        if units == "degrees": raise ValueError("Degrees not currently supported, please use radians.")
+        
         sequence = []
         for i, delta in enumerate(joint_deltas):
             if i == 0:
@@ -484,7 +492,7 @@ class MyUR3e(rclpy.node.Node):
                 sequence.append([sum(x) for x in zip(curr, delta)])
             else:
                 sequence.append([sum(x) for x in zip(sequence[i - 1], delta)])
-        self.move_joints(sequence, time_step=time_step, units=units, sim=sim, wait=wait)
+        self.move_joints(sequence, time_step=time_step, units=units, sim=sim, wait=wait, interp=interp)
 
     def move_joints(
         self,
@@ -510,16 +518,11 @@ class MyUR3e(rclpy.node.Node):
         if type(joint_positions) == str:
             joint_positions = self.get_trajectory(joint_positions)
 
-        if interp is not None:
+        if interp != None:
             joint_positions = self.interpolate(joint_positions, interp)
 
         if not sim:
-            if units == "radians":
-                trajectory = self.make_trajectory(joint_positions, time_step=time_step)
-            elif units == "degrees":
-                trajectory = self.make_trajectory(
-                    joint_positions, units="degrees", time_step=time_step
-                )
+            trajectory = self.make_trajectory(joint_positions, units=units,time_step=time_step)
             self.execute_trajectory(trajectory)
             if wait:
                 self.wait(self)
@@ -538,11 +541,11 @@ class MyUR3e(rclpy.node.Node):
         self.wait(self)
         self.get_logger().info(f"Goal #{self._id}: Stopped")
 
-    ########################################################
-    #################### PRIVATE METHODS ###################
-    ########################################################
+    ###########################################################################
+    ############################# PRIVATE METHODS #############################
+    ###########################################################################
 
-    #################### ROS CLIENT METHODS #################
+    ############################ ROS CLIENT METHODS ###########################
 
     def spin_async(self, curr_id):
         """
@@ -680,7 +683,7 @@ class MyUR3e(rclpy.node.Node):
             if not self.health_scan(): return
             rclpy.spin_once(client)
 
-    #################### CALLBACKS ####################
+    ################################ CALLBACKS ################################
 
     def get_timer_callback(self, *args, **kwargs):
         """
