@@ -566,23 +566,23 @@ class MyUR3e(rclpy.node.Node):
         if check_id():
             return
         while self._send_goal_future is None:  # screen None
-            #if not self.health_scan(): return
+            if not self.health_scan(): return
             self._executor.spin_once()
             if check_id():
                 return
         while not self._send_goal_future.done():  # check done
-            #if not self.health_scan(): return
+            if not self.health_scan(): return
             self._executor.spin_once()
             if check_id():
                 return
         if self._send_goal_future.result().accepted:
             while self._get_result_future is None:  # screen None
-                #if not self.health_scan(): return
+                if not self.health_scan(): return
                 self._executor.spin_once()
                 if check_id():
                     return
             while not self._get_result_future.done():  # check done
-                #if not self.health_scan(): return
+                if not self.health_scan(): return
                 self._executor.spin_once()
                 if check_id():
                     return
@@ -680,7 +680,7 @@ class MyUR3e(rclpy.node.Node):
         """
         rclpy.spin_once(client)
         while not client.done:
-            #if not self.health_scan(): return
+            if not self.health_scan(): return
             rclpy.spin_once(client)
 
     ################################ CALLBACKS ################################
@@ -1017,8 +1017,10 @@ class Gripper(rclpy.node.Node):
             self.get_logger().debug(f"Waiting for gripper client")
 
 
-# TODO: install ur_msgs on JupyterHub ROS, until then Dashboard will not work
-# from ur_msgs.srv import RobotMode, SafetyMode
+# BUG: Robot Mode and Safety Mode appear to not be publishing continuously
+#      Until this is figured out this node will freeze whenever it is spun
+from ur_dashboard_msgs.msg import RobotMode
+from ur_dashboard_msgs.msg import SafetyMode
 
 class Dashboard(rclpy.node.Node):
     """
@@ -1058,7 +1060,7 @@ class Dashboard(rclpy.node.Node):
         Callback for when safety sub data is received.
 
         Args:
-            msg (Int32MultiArray): The safety mode message.
+            msg (SafetyMode): The safety mode message.
         """
         self.states[0] = msg.data
         self.safety_done = True
@@ -1068,7 +1070,7 @@ class Dashboard(rclpy.node.Node):
         Callback for when robot sub data is received.
 
         Args:
-            msg (Int32MultiArray): The robot mode message.
+            msg (RobotMode): The robot mode message.
         """
         self.states[1] = msg.data
         self.robot_done = True
@@ -1080,9 +1082,10 @@ class Dashboard(rclpy.node.Node):
         Returns:
             list: The current safety and robot mode of the UR arm.
         """
-        # self.wait()
-        # self.safety_done = False
-        # self.robot_done = False
+        return [1,7] # temporary fix for BUG
+        self.wait()
+        self.safety_done = False
+        self.robot_done = False
         return self.states
 
     def wait(self):
