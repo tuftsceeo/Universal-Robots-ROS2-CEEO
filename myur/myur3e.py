@@ -215,7 +215,7 @@ class MyUR3e(rclpy.node.Node):
             list: [Healthy (bool),Safety Mode (str), Robot Mode (str)]
         """
         health = self.dashboard.get()
-        if health[0] is not 1 or health[1] not in [5,7]: 
+        if health[0] != 1 or health[1] not in [5,7]: 
             health = self.error_code_to_str(health)
             self.get_logger().info(f"System Error: {health[0]} and {health[1]}")
             return False
@@ -677,7 +677,7 @@ class MyUR3e(rclpy.node.Node):
         """
         rclpy.spin_once(client)
         while not client.done:
-            if not self.health_scan(): return
+            #if not self.health_scan(): return
             rclpy.spin_once(client)
 
     #################### CALLBACKS ####################
