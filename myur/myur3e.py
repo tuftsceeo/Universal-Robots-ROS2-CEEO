@@ -87,12 +87,12 @@ class MyUR3e(rclpy.node.Node):
         self._id = 0
         self._executor = MultiThreadedExecutor()
         self._executor.add_node(self)
-        self.trajectory_file = "trajectory_dictionary.json"
+        self.trajectory_file = "trajectory_file.json"
         try:
             with open(self.trajectory_file, "r") as file:
                 self._trajectories = json.load(file)
         except (IOError, json.JSONDecodeError) as e:
-            raise IOError(f"An error occurred while loading the file: {e}")
+            pass
 
         # Public Attributes
         self.sim = TrajectoryPlanner()
@@ -116,11 +116,11 @@ class MyUR3e(rclpy.node.Node):
         with open(self.trajectory_file, "w") as file:
             json.dump(self._trajectories, file, indent=4)
 
-    ########################################################
-    #################### PUBLIC METHODS ####################
-    ########################################################
+    ###########################################################################
+    ############################# PUBLIC METHODS ##############################
+    ###########################################################################
 
-    #################### CLASS ACCESS METHODS ####################
+    ########################### CLASS ACCESS METHODS ##########################
 
     def set_response_callback(self, user_function):
         """
@@ -221,7 +221,7 @@ class MyUR3e(rclpy.node.Node):
             return False
         return True
 
-    #################### SERVICE METHODS ####################
+    ############################# SERVICE METHODS #############################
 
     def read_gripper(self):
         """
@@ -286,7 +286,7 @@ class MyUR3e(rclpy.node.Node):
         """
         return self.tool_wrench.get()["torque"]
 
-    #################### MOVEMENT METHODS ####################
+    ############################# MOVEMENT METHODS ############################
 
     def record(self, name, sleep=1, threshold=0.001):
         """
@@ -302,6 +302,11 @@ class MyUR3e(rclpy.node.Node):
             list: recorded trajectory
             
         """
+
+        # IDEA: taking data points once every period can result in very close physical points, especially at the
+        # end of the trajectory. this is a problem when using cubic splines. instead could take high frequency data 
+        # and find evenly evenly divided datapoints by physical distance?
+
         start = False
         first_pose = self.read_joints_pos()
 
@@ -443,7 +448,7 @@ class MyUR3e(rclpy.node.Node):
                 joint_positions, time_step=time_step, sim=sim, wait=wait, interp=None
             )
 
-    def move_global_r(self, pos_deltas, time_step=5, sim=False, wait=True):
+    def move_global_r(self, pos_deltas, time_step=5, sim=False, wait=True, interp=None):
         """
         Move the robot relative to where it was using global axes.
 
@@ -462,10 +467,10 @@ class MyUR3e(rclpy.node.Node):
                 sequence.append([sum(x) for x in zip(curr, delta)])
             else:
                 sequence.append([sum(x) for x in zip(sequence[i - 1], delta)])
-        self.move_global(sequence, time_step=time_step, sim=sim, wait=wait)
+        self.move_global(sequence, time_step=time_step, sim=sim, wait=wait, interp=interp)
 
     def move_joints_r(
-        self, joint_deltas, time_step=5, units="radians", sim=False, wait=True
+        self, joint_deltas, time_step=5, units="radians", sim=False, wait=True, interp=None
     ):
         """
         Move the robot relative to where it was using joint angles.
@@ -477,6 +482,9 @@ class MyUR3e(rclpy.node.Node):
             sim (bool, optional): True if no motion is desired, False if motion is desired.
             wait (bool, optional): True if blocking is desired, False if non blocking is desired.
         """
+        # BUG: when degrees are used in this feature the arm behaves unexpectedly, needs urgent fixing !!!
+        if units == "degrees": raise ValueError("Degrees not currently supported, please use radians.")
+        
         sequence = []
         for i, delta in enumerate(joint_deltas):
             if i == 0:
@@ -484,7 +492,7 @@ class MyUR3e(rclpy.node.Node):
                 sequence.append([sum(x) for x in zip(curr, delta)])
             else:
                 sequence.append([sum(x) for x in zip(sequence[i - 1], delta)])
-        self.move_joints(sequence, time_step=time_step, units=units, sim=sim, wait=wait)
+        self.move_joints(sequence, time_step=time_step, units=units, sim=sim, wait=wait, interp=interp)
 
     def move_joints(
         self,
@@ -510,16 +518,11 @@ class MyUR3e(rclpy.node.Node):
         if type(joint_positions) == str:
             joint_positions = self.get_trajectory(joint_positions)
 
-        if interp is not None:
+        if interp != None:
             joint_positions = self.interpolate(joint_positions, interp)
 
         if not sim:
-            if units == "radians":
-                trajectory = self.make_trajectory(joint_positions, time_step=time_step)
-            elif units == "degrees":
-                trajectory = self.make_trajectory(
-                    joint_positions, units="degrees", time_step=time_step
-                )
+            trajectory = self.make_trajectory(joint_positions, units=units,time_step=time_step)
             self.execute_trajectory(trajectory)
             if wait:
                 self.wait(self)
@@ -538,11 +541,11 @@ class MyUR3e(rclpy.node.Node):
         self.wait(self)
         self.get_logger().info(f"Goal #{self._id}: Stopped")
 
-    ########################################################
-    #################### PRIVATE METHODS ###################
-    ########################################################
+    ###########################################################################
+    ############################# PRIVATE METHODS #############################
+    ###########################################################################
 
-    #################### ROS CLIENT METHODS #################
+    ############################ ROS CLIENT METHODS ###########################
 
     def spin_async(self, curr_id):
         """
@@ -680,7 +683,7 @@ class MyUR3e(rclpy.node.Node):
             #if not self.health_scan(): return
             rclpy.spin_once(client)
 
-    #################### CALLBACKS ####################
+    ################################ CALLBACKS ################################
 
     def get_timer_callback(self, *args, **kwargs):
         """
@@ -803,7 +806,6 @@ class MyUR3e(rclpy.node.Node):
             elif error_code[1] == 7: robot_mode = "RUNNING"
             elif error_code[1] == 8: robot_mode = "UPDATING_FIRMWARE"
             return [safety_mode,robot_mode]
-
 
 
 class JointStates(rclpy.node.Node):
@@ -1015,6 +1017,11 @@ class Gripper(rclpy.node.Node):
             self.get_logger().debug(f"Waiting for gripper client")
 
 
+# BUG: Robot Mode and Safety Mode appear to not be publishing continuously
+#      Until this is figured out this node will freeze whenever it is spun
+from ur_dashboard_msgs.msg import RobotMode
+from ur_dashboard_msgs.msg import SafetyMode
+
 class Dashboard(rclpy.node.Node):
     """
     Subscribe and publish to Gripper topics.
@@ -1026,29 +1033,34 @@ class Dashboard(rclpy.node.Node):
         """
         super().__init__("ur_dashboard_client")
         self.safety_sub = self.create_subscription(
-            Int32MultiArray,
+            SafetyMode,
             "/io_and_status_controller/safety_mode",
             self.safety_sub_callback,
             10,
         )
 
         self.robot_sub = self.create_subscription(
-            Int32MultiArray,
+            RobotMode,
             "/io_and_status_controller/robot_mode",
             self.robot_sub_callback,
             10,
         )
 
+        self.timer = self.create_timer(.25, self.timer_callback)
+
         self.states = []
         self.safety_done = False
         self.robot_done = False
+
+    def timer_callback(self):
+        rclpy.spin_once(self)
 
     def safety_sub_callback(self, msg):
         """
         Callback for when safety sub data is received.
 
         Args:
-            msg (Int32MultiArray): The safety mode message.
+            msg (SafetyMode): The safety mode message.
         """
         self.states[0] = msg.data
         self.safety_done = True
@@ -1058,7 +1070,7 @@ class Dashboard(rclpy.node.Node):
         Callback for when robot sub data is received.
 
         Args:
-            msg (Int32MultiArray): The robot mode message.
+            msg (RobotMode): The robot mode message.
         """
         self.states[1] = msg.data
         self.robot_done = True
@@ -1070,12 +1082,13 @@ class Dashboard(rclpy.node.Node):
         Returns:
             list: The current safety and robot mode of the UR arm.
         """
+        return [1,7] # temporary fix for BUG
         self.wait()
         self.safety_done = False
         self.robot_done = False
         return self.states
 
-    def wait(self):  # class gripper
+    def wait(self):
         """
         Wait for the dashboard to be updated.
         """
