@@ -153,13 +153,13 @@ class MyUR3e(rclpy.node.Node):
             self._timer = self.create_timer(period, self.get_timer_callback)
         self.timer_callback = user_function
 
-    def clear_sim(self):
+    def clear_vis(self):
         """
         Clear all trajectories in the simulation plot.
         """
         self.sim.clear_plot()
 
-    def save_trajectory(self, name, trajectory):
+    def save_trajectory(self, name, trajectory,units=None,system=None):
         """
         Adds a trajectory to the collection and saves it to the local JSON file.
 
@@ -167,7 +167,9 @@ class MyUR3e(rclpy.node.Node):
             name (string): name that will be key of the stored coordinates.
             trajectory (list): coordinates making the trajectory
         """
-        self._trajectories[name] = trajectory
+        self._trajectories[name]["trajectory"] = trajectory
+        self._trajectories[name]["units"] = units
+        self._trajectories[name]["system"] = system
         try:
             with open(self.trajectory_file, "w") as file:
                 json.dump(self._trajectories, file, indent=4)
@@ -194,7 +196,7 @@ class MyUR3e(rclpy.node.Node):
 
         if trajectory is None: raise ValueError(f"No trajectory found with the name: {name}")
 
-        return trajectory
+        return trajectory["trajectory"]
 
     def clear_traj(self):
         """
@@ -230,7 +232,8 @@ class MyUR3e(rclpy.node.Node):
         Returns:
             list: [POS (int), SPE (int), FOR (int)]
         """
-        return self.gripper.get()
+        [position,speed,force] = self.gripper.get()
+        return [100*position/255,100*speed/255,100*force/255]
 
     def read_joints_pos(self):
         """
@@ -288,7 +291,7 @@ class MyUR3e(rclpy.node.Node):
 
     ############################# MOVEMENT METHODS ############################
 
-    def record(self, name, sleep=1, threshold=0.001):
+    def record(self, name, interval=1, threshold=0.001):
         """
         Record the live motion of the arm using joint angles. Recording automatically starts 
         when the arm moves and stops when the arm is at rest. The trajectory will be saved to
@@ -325,7 +328,7 @@ class MyUR3e(rclpy.node.Node):
         while recording:
             curr_pose = self.read_joints_pos()
             trajectory.append(curr_pose)
-            time.sleep(sleep)
+            time.sleep(interval)
             distance = np.linalg.norm(
                 np.array(curr_pose) - np.array(self.read_joints_pos())
             )
@@ -398,7 +401,7 @@ class MyUR3e(rclpy.node.Node):
         # Evaluate the spline for the new arc_length range
         return spline(arc_length_new).tolist()
 
-    def move_gripper(self, POS, SPE, FOR, BLOCK=True):
+    def move_gripper(self, position, speed=50, force=50, wait=True):
         """
         Move the gripper to the specified position with given speed and force.
 
@@ -407,16 +410,16 @@ class MyUR3e(rclpy.node.Node):
             SPE (int): Speed for the gripper.
             FOR (int): Force for the gripper.
         """
-        self.gripper.control(POS, SPE, FOR, BLOCK)
+        self.gripper.control(255*position/100, 255*speed/100, 255*force/100, wait)
 
-    def move_global(self, coordinates, time_step=5, sim=False, wait=True, interp=None):
+    def move_global(self, coordinates, time=5, vis_only=False, wait=True, interp=None):
         """
         Move the robot to specified global coordinates.
 
         Args:
             coordinates (list): List of coordinates to move to.
                 either [x, y, z, rx, ry, rz] or [x, y, z, qx, qy, qz, qw].
-            time_step (float/tuple, optional): If float, time step between each coordinate. If
+            time (float/tuple, optional): If float, time step between each coordinate. If
                 tuple, first float represents time to first pos, second float is all following steps.
             sim (bool, optional): True if no motion is desired, False if motion is desired.
             wait (bool, optional): True if blocking is desired, False if non blocking is desired.
@@ -445,17 +448,17 @@ class MyUR3e(rclpy.node.Node):
             )
         elif sim == False:
             self.move_joints(
-                joint_positions, time_step=time_step, sim=sim, wait=wait, interp=None
+                joint_positions, time=time, vis_only=sim, wait=wait, interp=None
             )
 
-    def move_global_r(self, pos_deltas, time_step=5, sim=False, wait=True, interp=None):
+    def move_global_r(self, pos_deltas, time=5, vis_only=False, wait=True, interp=None):
         """
         Move the robot relative to where it was using global axes.
 
         Args:
             pos_deltas (list): List of relative movements.
                 either [x, y, z, rx, ry, rz] or [x, y, z, qx, qy, qz, qw].
-            time_step (float/tuple, optional): If float, time step between each coordinate. If
+            time (float/tuple, optional): If float, time step between each coordinate. If
                 tuple, first float represents time to first pos, second float is all following steps.
             sim (bool, optional): True if no motion is desired, False if motion is desired.
             wait (bool, optional): True if blocking is desired, False if non blocking is desired.
@@ -467,17 +470,17 @@ class MyUR3e(rclpy.node.Node):
                 sequence.append([sum(x) for x in zip(curr, delta)])
             else:
                 sequence.append([sum(x) for x in zip(sequence[i - 1], delta)])
-        self.move_global(sequence, time_step=time_step, sim=sim, wait=wait, interp=interp)
+        self.move_global(sequence, time=time, vis_only=sim, wait=wait, interp=interp)
 
     def move_joints_r(
-        self, joint_deltas, time_step=5, units="radians", sim=False, wait=True, interp=None
+        self, joint_deltas, time=5, units="radians", vis_only=False, wait=True, interp=None
     ):
         """
         Move the robot relative to where it was using joint angles.
 
         Args:
             joint_deltas (list): List of relative movements. [j1,j2,j3,j4,j5,j6].
-            time_step (float/tuple, optional): If float, time step between each coordinate. If
+            time (float/tuple, optional): If float, time step between each coordinate. If
                 tuple, first float represents time to first pos, second float is all following steps.
             sim (bool, optional): True if no motion is desired, False if motion is desired.
             wait (bool, optional): True if blocking is desired, False if non blocking is desired.
@@ -492,14 +495,14 @@ class MyUR3e(rclpy.node.Node):
                 sequence.append([sum(x) for x in zip(curr, delta)])
             else:
                 sequence.append([sum(x) for x in zip(sequence[i - 1], delta)])
-        self.move_joints(sequence, time_step=time_step, units=units, sim=sim, wait=wait, interp=interp)
+        self.move_joints(sequence, time=time, units=units, vis_only=sim, wait=wait, interp=interp)
 
     def move_joints(
         self,
         joint_positions,
-        time_step=5,
+        time=5,
         units="radians",
-        sim=False,
+        vis_only=False,
         wait=True,
         interp=None,
     ):
@@ -508,7 +511,7 @@ class MyUR3e(rclpy.node.Node):
 
         Args:
             joint_positions (list): List of joint positions. [j1,j2,j3,j4,j5,j6].
-            time_step (float/tuple, optional): If float, time step between each coordinate. If
+            time (float/tuple, optional): If float, time step between each coordinate. If
                 tuple, first float represents time to first pos, second float is all following steps.
             units (string, optional): radians or degrees
             sim (bool, optional): True if no motion is desired, False if motion is desired.
@@ -522,7 +525,7 @@ class MyUR3e(rclpy.node.Node):
             joint_positions = self.interpolate(joint_positions, interp)
 
         if not sim:
-            trajectory = self.make_trajectory(joint_positions, units=units,time_step=time_step)
+            trajectory = self.make_trajectory(joint_positions, units=units,time=time)
             self.execute_trajectory(trajectory)
             if wait:
                 self.wait(self)
@@ -602,7 +605,7 @@ class MyUR3e(rclpy.node.Node):
         self.done = True
 
     def make_trajectory(
-        self, joint_positions, units="radians", time_step=5, stop=False
+        self, joint_positions, units="radians", time=5, stop=False
     ):
         """
         Create a trajectory for the robot to follow.
@@ -610,7 +613,7 @@ class MyUR3e(rclpy.node.Node):
         Args:
             joint_positions (list): List of joint positions.
             units (string, optional): Units for the joint positions, either 'radians' or 'degrees'.
-            time_step (int, optional): Time step between each position.
+            time (int, optional): Time step between each position.
             stop (bool, optional): if True creates a stop trajectory.
 
         Returns:
@@ -629,12 +632,12 @@ class MyUR3e(rclpy.node.Node):
                 elif units == "degrees":
                     point.positions = self.pointdeg2rad(position)
 
-                if i == 0 and type(time_step) == tuple:
-                    time = time_step[0]
-                elif type(time_step) == tuple:
-                    time = time_step[0] + (i + 1) * time_step[1]
+                if type(time) == tuple:
+                    if i == 0: time = time[0]
+                    else: time = time[0] + (i + 1) * (time[1]/len(joint_positions))
                 else:
-                    time = (i + 1) * time_step
+                    if i == 0: time = time
+                    else: time = (i + 1) * (time/len(joint_positions))
 
                 sec = int(time - (time % 1))
                 nanosec = int(time % 1 * 1000000000)
