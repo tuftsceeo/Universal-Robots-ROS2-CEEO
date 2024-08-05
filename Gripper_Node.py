@@ -36,12 +36,13 @@ class Publisher(Node):
             int(self.gripper.get_current_position()),
             int(self.gripper.get_current_speed()),
             int(self.gripper.get_current_force()),
-            int(self.gripper.is_active())
+            int(self.gripper.OBJ)
         ]
         self.publisher_.publish(msg)
 
     def listener_callback(self, msg):
         try:
+            print("RECIEVED CONTROL:",msg.data)
             [POS, SPE, FOR] = msg.data
             self.gripper.move(POS, SPE, FOR)
         except Exception as e:

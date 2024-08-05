@@ -1009,7 +1009,7 @@ class Gripper(rclpy.node.Node):
             self.active = True
             while self.active:
                 self.wait(self)
-                if not self.states[3]: self.active = False
+                if self.states[3] != 0: self.active = False
 
     def wait(self, client):  # class gripper
         """
