@@ -464,7 +464,7 @@ class MyUR3e(rclpy.node.Node):
             wait (bool, optional): True if blocking is desired, False if non blocking is desired.
         """
         if type(time)==tuple: raise ValueError("Time cannot be a tuple: relative movements do not need time to arrive at first point.")
-        
+
         sequence = []
         for i, delta in enumerate(pos_deltas):
             if i == 0:
@@ -639,7 +639,7 @@ class MyUR3e(rclpy.node.Node):
 
                 if type(time) != tuple: # robot spends equal time getting to starting pose and executing trajectory
                     if i == 0: arrival = time
-                    else: arrival = time + (i + 1) * (time/(len(joint_positions)-1))
+                    else: arrival = time + i * (time/(len(joint_positions)-1))
                 elif type(time) == tuple and time[0] == 0: # robot already in starting pose
                     arrival = (i + 1) * (time[1]/(len(joint_positions)-1))
                 elif type(time) == tuple: # robot needs time to get to starting pose
@@ -1013,11 +1013,18 @@ class Gripper(rclpy.node.Node):
         self.publisher_.publish(msg)
 
         if BLOCK:
-            time.sleep(0.1)
+            # wait until the gripper acknowledges that it will try to go to the requested position
+            time.sleep(0.05)
             self.get()
-            while abs(self.states[0] - POS) > 10:
-                time.sleep(0.01)
+            while self.states[4] != self.states[3]:
                 self.get()
+                time.sleep(0.005)
+
+            # wait until not moving
+            self.get()
+            while self.states[5] != 3:
+                self.get()
+                time.sleep(0.005)
 
     def wait(self, client):  # class gripper
         """

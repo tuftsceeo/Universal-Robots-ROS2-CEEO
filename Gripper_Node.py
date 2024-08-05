@@ -29,6 +29,8 @@ class Publisher(Node):
             auto_calibrate=True
         )  # should maybe add control option to calibrate
 
+        self.target = -1
+
     def timer_callback(self):
         # every interval, create and publish gripper state
         msg = Int32MultiArray()
@@ -36,6 +38,9 @@ class Publisher(Node):
             int(self.gripper.get_current_position()),
             int(self.gripper.get_current_speed()),
             int(self.gripper.get_current_force()),
+            int(self.target),
+            int(self.gripper._get_var(self.gripper.PRE)),
+            int(self.gripper._get_var(self.gripper.OBJ))
         ]
         self.publisher_.publish(msg)
 
@@ -43,7 +48,7 @@ class Publisher(Node):
         try:
             print("RECIEVED CONTROL:",msg.data)
             [POS, SPE, FOR] = msg.data
-            self.gripper.move(POS, SPE, FOR)
+            null, self.target = self.gripper.move(POS, SPE, FOR)
         except Exception as e:
             self.get_logger().info(f"Incorrect Gripper Control Format: [POS,SPE,FOR]")
 
