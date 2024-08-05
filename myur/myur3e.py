@@ -634,10 +634,10 @@ class MyUR3e(rclpy.node.Node):
 
                 if type(time) == tuple:
                     if i == 0: time = time[0]
-                    else: time = time[0] + (i + 1) * (time[1]/len(joint_positions))
+                    else: time = time[0] + (i + 1) * (time[1]/(len(joint_positions)-1))
                 else:
                     if i == 0: time = time
-                    else: time = (i + 1) * (time/len(joint_positions))
+                    else: time = time + (i + 1) * (time/(len(joint_positions)-1))
 
                 sec = int(time - (time % 1))
                 nanosec = int(time % 1 * 1000000000)
