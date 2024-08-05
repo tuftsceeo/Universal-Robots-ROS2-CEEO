@@ -651,7 +651,7 @@ class MyUR3e(rclpy.node.Node):
                 point.time_from_start = Duration(sec=sec, nanosec=nanosec)
                 trajectory.points.append(point)
         else:
-            positions = self.get_joints()["position"]
+            positions = self.read_joints_pos()
             point = JointTrajectoryPoint()
             point.positions = positions
             point.time_from_start = Duration(sec=0, nanosec=100000000)
@@ -688,10 +688,10 @@ class MyUR3e(rclpy.node.Node):
         Args:
             client (ActionClient): The action client.
         """
-        rclpy.spin_once(client)
+        self._executor.spin_once()
         while not client.done:
             if not self.health_scan(): return
-            rclpy.spin_once(client)
+            self._executor.spin_once()
 
     ################################ CALLBACKS ################################
 
@@ -1018,13 +1018,13 @@ class Gripper(rclpy.node.Node):
             self.get()
             while self.states[4] != self.states[3]:
                 self.get()
-                time.sleep(0.005)
+                time.sleep(0.05)
 
             # wait until not moving
             self.get()
-            while self.states[5] != 3:
+            while self.states[5] == 0:
                 self.get()
-                time.sleep(0.005)
+                time.sleep(0.05)
 
     def wait(self, client):  # class gripper
         """
