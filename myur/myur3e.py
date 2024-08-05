@@ -95,7 +95,7 @@ class MyUR3e(rclpy.node.Node):
             pass
 
         # Public Attributes
-        self.sim = TrajectoryPlanner()
+        self.vis = TrajectoryPlanner()
         self.ik_solver = URKinematics("ur3e")
         self.joint_states = JointStates()
         self.tool_wrench = ToolWrench()
@@ -155,9 +155,9 @@ class MyUR3e(rclpy.node.Node):
 
     def clear_vis(self):
         """
-        Clear all trajectories in the simulation plot.
+        Clear all trajectories in the visualization plot.
         """
-        self.sim.clear_plot()
+        self.vis.clear_plot()
 
     def save_trajectory(self, name, trajectory,units=None,system=None):
         """
@@ -307,7 +307,7 @@ class MyUR3e(rclpy.node.Node):
         """
 
         # IDEA: taking data points once every period can result in very close physical points, especially at the
-        # end of the trajectory. this is a problem when using cubic splines. instead could take high frequency data 
+        # end of the trajectory. This is a problem when using cubic splines. instead could take high frequency data 
         # and find evenly evenly divided datapoints by physical distance?
 
         start = False
@@ -421,7 +421,7 @@ class MyUR3e(rclpy.node.Node):
                 either [x, y, z, rx, ry, rz] or [x, y, z, qx, qy, qz, qw].
             time (float/tuple, optional): If float, time step between each coordinate. If
                 tuple, first float represents time to first pos, second float is all following steps.
-            sim (bool, optional): True if no motion is desired, False if motion is desired.
+            vis_only (bool, optional): True if no motion is desired, False if motion is desired.
             wait (bool, optional): True if blocking is desired, False if non blocking is desired.
             interp (string, optional): Options are None, linear, arc, spline.
         """
@@ -440,15 +440,15 @@ class MyUR3e(rclpy.node.Node):
             else:
                 joint_positions.append(self.solve_ik(cord, joint_positions[i - 1]))
 
-        self.sim.add_trajectory(coordinates, joint_positions)
+        self.vis.add_trajectory(coordinates, joint_positions)
 
         if None in joint_positions:
             raise RuntimeError(
                 f"IK solution not found for {joint_positions.count(None)}/{len(joint_positions)} points"
             )
-        elif sim == False:
+        elif vis_only == False:
             self.move_joints(
-                joint_positions, time=time, vis_only=sim, wait=wait, interp=None
+                joint_positions, time=time, vis_only=vis_only, wait=wait, interp=None
             )
 
     def move_global_r(self, pos_deltas, time=5, vis_only=False, wait=True, interp=None):
@@ -460,7 +460,7 @@ class MyUR3e(rclpy.node.Node):
                 either [x, y, z, rx, ry, rz] or [x, y, z, qx, qy, qz, qw].
             time (float/tuple, optional): If float, time step between each coordinate. If
                 tuple, first float represents time to first pos, second float is all following steps.
-            sim (bool, optional): True if no motion is desired, False if motion is desired.
+            vis_only (bool, optional): True if no motion is desired, False if motion is desired.
             wait (bool, optional): True if blocking is desired, False if non blocking is desired.
         """
         sequence = []
@@ -470,7 +470,7 @@ class MyUR3e(rclpy.node.Node):
                 sequence.append([sum(x) for x in zip(curr, delta)])
             else:
                 sequence.append([sum(x) for x in zip(sequence[i - 1], delta)])
-        self.move_global(sequence, time=time, vis_only=sim, wait=wait, interp=interp)
+        self.move_global(sequence, time=time, vis_only=vis_only, wait=wait, interp=interp)
 
     def move_joints_r(
         self, joint_deltas, time=5, units="radians", vis_only=False, wait=True, interp=None
@@ -482,7 +482,7 @@ class MyUR3e(rclpy.node.Node):
             joint_deltas (list): List of relative movements. [j1,j2,j3,j4,j5,j6].
             time (float/tuple, optional): If float, time step between each coordinate. If
                 tuple, first float represents time to first pos, second float is all following steps.
-            sim (bool, optional): True if no motion is desired, False if motion is desired.
+            vis_only (bool, optional): True if no motion is desired, False if motion is desired.
             wait (bool, optional): True if blocking is desired, False if non blocking is desired.
         """
         # BUG: when degrees are used in this feature the arm behaves unexpectedly, needs urgent fixing !!!
@@ -495,7 +495,7 @@ class MyUR3e(rclpy.node.Node):
                 sequence.append([sum(x) for x in zip(curr, delta)])
             else:
                 sequence.append([sum(x) for x in zip(sequence[i - 1], delta)])
-        self.move_joints(sequence, time=time, units=units, vis_only=sim, wait=wait, interp=interp)
+        self.move_joints(sequence, time=time, units=units, vis_only=vis_only, wait=wait, interp=interp)
 
     def move_joints(
         self,
@@ -514,7 +514,7 @@ class MyUR3e(rclpy.node.Node):
             time (float/tuple, optional): If float, time step between each coordinate. If
                 tuple, first float represents time to first pos, second float is all following steps.
             units (string, optional): radians or degrees
-            sim (bool, optional): True if no motion is desired, False if motion is desired.
+            vis_only (bool, optional): True if no motion is desired, False if motion is desired.
             wait (bool, optional): True if blocking is desired, False if non blocking is desired.
             interp (string, optional): Options are None, linear, arc, spline.
         """
@@ -524,7 +524,7 @@ class MyUR3e(rclpy.node.Node):
         if interp != None:
             joint_positions = self.interpolate(joint_positions, interp)
 
-        if not sim:
+        if not vis_only:
             trajectory = self.make_trajectory(joint_positions, units=units,time=time)
             self.execute_trajectory(trajectory)
             if wait:
@@ -683,7 +683,7 @@ class MyUR3e(rclpy.node.Node):
         """
         rclpy.spin_once(client)
         while not client.done:
-            #if not self.health_scan(): return
+            if not self.health_scan(): return
             rclpy.spin_once(client)
 
     ################################ CALLBACKS ################################
