@@ -233,7 +233,7 @@ class MyUR3e(rclpy.node.Node):
             list: [POS (int), SPE (int), FOR (int)]
         """
         [position,speed,force] = self.gripper.get()
-        return [100*position/255,100*speed/255,100*force/255]
+        return [int(100*position/255),int(100*speed/255),int(100*force/255)]
 
     def read_joints_pos(self):
         """
@@ -410,7 +410,7 @@ class MyUR3e(rclpy.node.Node):
             SPE (int): Speed for the gripper.
             FOR (int): Force for the gripper.
         """
-        self.gripper.control(255*position/100, 255*speed/100, 255*force/100, wait)
+        self.gripper.control(int(255*position/100), int(255*speed/100), int(255*force/100), wait)
 
     def move_global(self, coordinates, time=5, vis_only=False, wait=True, interp=None):
         """
