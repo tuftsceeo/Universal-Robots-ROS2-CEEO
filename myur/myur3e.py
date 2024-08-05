@@ -463,6 +463,8 @@ class MyUR3e(rclpy.node.Node):
             vis_only (bool, optional): True if no motion is desired, False if motion is desired.
             wait (bool, optional): True if blocking is desired, False if non blocking is desired.
         """
+        if type(time)==tuple: raise ValueError("Time cannot be a tuple: relative movements do not need time to arrive at first point.")
+        
         sequence = []
         for i, delta in enumerate(pos_deltas):
             if i == 0:
@@ -470,7 +472,7 @@ class MyUR3e(rclpy.node.Node):
                 sequence.append([sum(x) for x in zip(curr, delta)])
             else:
                 sequence.append([sum(x) for x in zip(sequence[i - 1], delta)])
-        self.move_global(sequence, time=time, vis_only=vis_only, wait=wait, interp=interp)
+        self.move_global(sequence, time=(time/len(pos_deltas),time-time/len(pos_deltas)), vis_only=vis_only, wait=wait, interp=interp)
 
     def move_joints_r(
         self, joint_deltas, time=5, units="radians", vis_only=False, wait=True, interp=None
@@ -487,6 +489,8 @@ class MyUR3e(rclpy.node.Node):
         """
         # BUG: when degrees are used in this feature the arm behaves unexpectedly, needs urgent fixing !!!
         if units == "degrees": raise ValueError("Degrees not currently supported, please use radians.")
+
+        if type(time)==tuple: raise ValueError("Time cannot be a tuple: relative movements do not need time to arrive at first point.")
         
         sequence = []
         for i, delta in enumerate(joint_deltas):
@@ -495,7 +499,7 @@ class MyUR3e(rclpy.node.Node):
                 sequence.append([sum(x) for x in zip(curr, delta)])
             else:
                 sequence.append([sum(x) for x in zip(sequence[i - 1], delta)])
-        self.move_joints(sequence, time=time, units=units, vis_only=vis_only, wait=wait, interp=interp)
+        self.move_joints(sequence, time=(time/len(joint_deltas),time-time/len(joint_deltas)), units=units, vis_only=vis_only, wait=wait, interp=interp)
 
     def move_joints(
         self,
@@ -632,12 +636,15 @@ class MyUR3e(rclpy.node.Node):
                 elif units == "degrees":
                     point.positions = self.pointdeg2rad(position)
 
-                if type(time) == tuple:
-                    if i == 0: arrival = time[0]
-                    else: arrival = time[0] + (i + 1) * (time[1]/(len(joint_positions)-1))
-                else:
+
+                if type(time) != tuple: # robot spends equal time getting to starting pose and executing trajectory
                     if i == 0: arrival = time
                     else: arrival = time + (i + 1) * (time/(len(joint_positions)-1))
+                elif type(time) == tuple and time[0] == 0: # robot already in starting pose
+                    arrival = (i + 1) * (time[1]/(len(joint_positions)-1))
+                elif type(time) == tuple: # robot needs time to get to starting pose
+                    if i == 0: arrival = time[0]
+                    else: arrival = time[0] + i * (time[1]/(len(joint_positions)-1))
 
                 sec = int(arrival - (arrival % 1))
                 nanosec = int(arrival % 1 * 1000000000)
