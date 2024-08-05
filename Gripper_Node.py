@@ -36,16 +36,14 @@ class Publisher(Node):
             int(self.gripper.get_current_position()),
             int(self.gripper.get_current_speed()),
             int(self.gripper.get_current_force()),
+            int(self.gripper.is_active())
         ]
         self.publisher_.publish(msg)
 
     def listener_callback(self, msg):
         try:
-            [POS, SPE, FOR, BLOCK] = msg.data
-            if BLOCK:
-                self.gripper.move_and_wait_for_pos(POS, SPE, FOR)
-            else:
-                self.gripper.move(POS, SPE, FOR)
+            [POS, SPE, FOR] = msg.data
+            self.gripper.move(POS, SPE, FOR)
         except Exception as e:
             self.get_logger().info(f"Incorrect Gripper Control Format: [POS,SPE,FOR]")
 

@@ -969,6 +969,7 @@ class Gripper(rclpy.node.Node):
 
         self.states = None
         self.done = False
+        self.active = False
 
     def listener_callback(self, msg):
         """
@@ -989,7 +990,7 @@ class Gripper(rclpy.node.Node):
         """
         self.wait(self)
         self.done = False
-        return list(self.states)
+        return list(self.states[0:3])
 
     def control(self, POS, SPE, FOR, BLOCK):
         """
@@ -1001,11 +1002,14 @@ class Gripper(rclpy.node.Node):
             FOR (int): Force for the gripper.
         """
         msg = Int32MultiArray()
-        if BLOCK:
-            msg.data = [POS, SPE, FOR, 1]
-        else:
-            msg.data = [POS, SPE, FOR, 0]
+        msg.data = [POS, SPE, FOR]
         self.publisher_.publish(msg)
+
+        if BLOCK:
+            self.active = True
+            while self.active:
+                self.wait(self)
+                if not self.states[3]: self.active = False
 
     def wait(self, client):  # class gripper
         """
