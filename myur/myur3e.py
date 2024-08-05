@@ -1006,10 +1006,11 @@ class Gripper(rclpy.node.Node):
         self.publisher_.publish(msg)
 
         if BLOCK:
-            self.active = True
-            while self.active:
-                self.wait(self)
-                if self.states[3] != 0: self.active = False
+            time.sleep(0.1)
+            self.get()
+            while abs(self.states[0] - POS) > 10:
+                time.sleep(0.01)
+                self.get()
 
     def wait(self, client):  # class gripper
         """

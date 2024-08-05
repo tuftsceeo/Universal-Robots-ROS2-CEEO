@@ -36,7 +36,6 @@ class Publisher(Node):
             int(self.gripper.get_current_position()),
             int(self.gripper.get_current_speed()),
             int(self.gripper.get_current_force()),
-            int(self.gripper.OBJ)
         ]
         self.publisher_.publish(msg)
 
