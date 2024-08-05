@@ -633,14 +633,14 @@ class MyUR3e(rclpy.node.Node):
                     point.positions = self.pointdeg2rad(position)
 
                 if type(time) == tuple:
-                    if i == 0: time = time[0]
-                    else: time = time[0] + (i + 1) * (time[1]/(len(joint_positions)-1))
+                    if i == 0: arrival = time[0]
+                    else: arrival = time[0] + (i + 1) * (time[1]/(len(joint_positions)-1))
                 else:
-                    if i == 0: time = time
-                    else: time = time + (i + 1) * (time/(len(joint_positions)-1))
+                    if i == 0: arrival = time
+                    else: arrival = time + (i + 1) * (time/(len(joint_positions)-1))
 
-                sec = int(time - (time % 1))
-                nanosec = int(time % 1 * 1000000000)
+                sec = int(arrival - (arrival % 1))
+                nanosec = int(arrival % 1 * 1000000000)
                 point.time_from_start = Duration(sec=sec, nanosec=nanosec)
                 trajectory.points.append(point)
         else:
