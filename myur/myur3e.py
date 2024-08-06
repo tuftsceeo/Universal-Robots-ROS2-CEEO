@@ -169,9 +169,10 @@ class MyUR3e(rclpy.node.Node):
             name (string): name that will be key of the stored coordinates.
             trajectory (list): coordinates making the trajectory
         """
-        self._trajectories[name]["trajectory"] = trajectory
-        self._trajectories[name]["units"] = units
-        self._trajectories[name]["system"] = system
+        self._trajectories[name] = {"trajectory":trajectory,
+                                    "units":units,
+                                    "system":system}
+
         try:
             with open(self.trajectory_file, "w") as file:
                 json.dump(self._trajectories, file, indent=4)
