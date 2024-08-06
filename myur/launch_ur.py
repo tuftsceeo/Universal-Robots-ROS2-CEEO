@@ -13,6 +13,7 @@ def main():
     args = parser.parse_args()
     
     # Build the command with arguments
+    # ros2 launch ur_robot_driver ur_control.launch.py ur_type:=ur3e robot_ip:=130.64.17.5 launch_rviz:=false
     command = [
         "ros2", "launch", "ur_robot_driver", "ur_control.launch.py",
         f"ur_type:={args.ur_type}", f"robot_ip:={args.ip}", f"launch_rviz:={str(args.launch_rviz).lower()}"
