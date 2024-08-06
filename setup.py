@@ -9,8 +9,7 @@ setup(
         'setuptools',
         'scipy',
         'numpy',
-        'plotly',
-        'json'
+        'plotly'
     ],
     # entry_points={
     #     'console_scripts': [
