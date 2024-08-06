@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "myur"
+version = "0.1.0"
+description = "ROS2 Python package for Universal Robots"
+readme = "README.md"  # Assuming you have a README file
+requires-python = ">=3.0"
+authors = [
+    { name = "Tufts University CEEO", email = "ceeo@tufts.edu" }
+]
+urls = { "Homepage" = "https://github.com/tuftsceeo/Universal-Robots-ROS2-CEEO" }
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent"
+]
+
+[project.dependencies]
+rclpy = "*"
+setuptools = "*"
+scipy = "*"
+numpy = "*"
+plotly = "*"
+
+# Should add an entry point here for launch !
+#[project.scripts]
+#my_action_client = "my_package.my_action_client:main"
