@@ -7,9 +7,9 @@ import time
 IP = "130.64.17.5"
 
 
-class Publisher(Node):
+class Gripper(Node):
 
-    def __init__(self):
+    def __init__(self,IP,calibrate=True):
         # initialize the topic (name it, create the publisher and publishing rate
         super().__init__("GripperNode")
         print("Initizializing Gripper Node")
@@ -25,9 +25,7 @@ class Publisher(Node):
         self.gripper = robotiq_gripper.RobotiqGripper()
         self.gripper.connect(IP, 63352)
         print("Activating Gripper")
-        self.gripper.activate(
-            auto_calibrate=True
-        )  # should maybe add control option to calibrate
+        self.gripper.activate(auto_calibrate=calibrate)
 
         self.target = -1
 
@@ -54,10 +52,25 @@ class Publisher(Node):
 
 
 def main():
+    # Set up argument parsing
+    parser = argparse.ArgumentParser(description="Start the Gripper Node")
+    parser.add_argument('-sc', action='store_true', help='Skip calibration')
+    parser.add_argument('--ip', type=str, required=True, help='IP address of the gripper')
+    
+    args = parser.parse_args()
+
     rclpy.init()
-    chatter = Publisher()
-    rclpy.spin(chatter)  # The code stays here forever, publishing strings
-    chatter.destroy_node()
+    
+    if args.skip_calibration:
+        print("Skipping calibration...")
+        gripper_node = Gripper(args.ip,calibrate=False)
+    else:
+        print("Performing calibration...")
+        gripper_node = Gripper(args.ip,calibrate=True)
+
+    print("Gripper Node started")
+    rclpy.spin(gripper_node)  # The code stays here forever
+    gripper_node.destroy_node()
     rclpy.shutdown()
 
 
