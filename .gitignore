@@ -1,6 +1,9 @@
+### myur specific ignores
 .DS_Store
 trajectory_dictionary.json
 ur3e_trajectory.html
+
+### Github goto gitignore:
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
