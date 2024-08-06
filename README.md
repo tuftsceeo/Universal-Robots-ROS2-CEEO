@@ -63,8 +63,8 @@ def main():
         print(robot.read_gripper()) # Gripper Position, Speed, Force
 
         # Open and close the gripper
-        robot.move_gripper(0,255,255) # Open
-        robot.move_gripper(255,255,255) # Close
+        robot.move_gripper(0) # Open
+        robot.move_gripper(100) # Close
 
         # Create a point or trajectory
         point = [[0.5, 0.5, 0.3, 0.0, 0.0, 0.0]] # [x,y,z,rx,ry,rz]
