@@ -84,7 +84,7 @@ if __name__ == '__main__':
 ## Troubleshooting ##
 
 My code freezes when I try to initialize the MyUR3e class:
-  - Make sure that you have launched the UR ROS Driver.<br/>
+  - Make sure that you have launched the UR ROS Driver.
   
 I am getting the error "Goal Rejected :(":
   - Check the logs of the UR ROS Driver for error messages
@@ -93,7 +93,7 @@ I am getting the error "Goal Rejected :(":
 ```bash
 ros2 control list_controllers
 ros2 control switch_controllers --activate scaled_joint_trajectory_controller
+```
 
 My driver log says "state tolerance error":
   - Use MyUR3e.read_joints_pos() to ensure that no joints are wound over 360 degrees.
-```
