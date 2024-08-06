@@ -50,6 +50,7 @@ class Gripper(Node):
         except Exception as e:
             self.get_logger().info(f"Incorrect Gripper Control Format: [POS,SPE,FOR]")
 
+import argparse
 
 def main():
     # Set up argument parsing
