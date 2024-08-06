@@ -4,9 +4,6 @@ from std_msgs.msg import Int32MultiArray
 from myur import robotiq_gripper
 import time
 
-IP = "130.64.17.5"
-
-
 class Gripper(Node):
 
     def __init__(self,IP,calibrate=True):
@@ -24,7 +21,6 @@ class Gripper(Node):
 
         self.gripper = robotiq_gripper.RobotiqGripper()
         self.gripper.connect(IP, 63352)
-        print("Activating Gripper")
         self.gripper.activate(auto_calibrate=calibrate)
 
         self.target = -1
@@ -62,7 +58,7 @@ def main():
 
     rclpy.init()
     
-    if args.skip_calibration:
+    if args.sc:
         print("Skipping calibration...")
         gripper_node = Gripper(args.ip,calibrate=False)
     else:
