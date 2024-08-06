@@ -22,7 +22,7 @@ Clone this repository to your local machine:
 git clone https://github.com/tuftsceeo/Universal-Robots-ROS2-CEEO
 ```
 
-Install / update all dependencies:
+Install the python package and all dependencies:
 
 ```bash
 cd Universal-Robots-ROS2-CEEO
@@ -33,12 +33,12 @@ pip install .
 
 In a new terminal, launch the ROS2 UR Driver: (leave this running)
 ```bash
-ros2 launch ur_robot_driver ur_control.launch.py ur_type:=ur3e robot_ip:=130.64.17.5 launch_rviz:=false
+launch_ur --ip "130.64.17.5"
 ```
 
 In a new terminal, launch the ROS Gripper Node: (leave this running)
 ```bash
-python3 Gripper_Node.py
+launch_gripper --ip "130.64.17.5"
 ```
 
 Verify you can interact with the ROS2 topics:
