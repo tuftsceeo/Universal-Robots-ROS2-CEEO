@@ -26,6 +26,10 @@ dependencies = [
     "plotly"
 ]
 
+[tool.setuptools.packages.find]
+where = ["myur"]
+include = ["myur*", "myur.ik_solver*"]
+
 # Should add an entry point here for launch !
 [project.scripts]
 launch_gripper = "myur.Gripper_Node:main"
