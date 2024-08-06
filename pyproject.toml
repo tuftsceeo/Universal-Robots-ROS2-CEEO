@@ -19,11 +19,13 @@ classifiers = [
 ]
 
 [project.dependencies]
-rclpy = "*"
-setuptools = "*"
-scipy = "*"
-numpy = "*"
-plotly = "*"
+dependencies = [
+    "rclpy",
+    "setuptools",
+    "scipy",
+    "numpy",
+    "plotly"
+]
 
 # Should add an entry point here for launch !
 #[project.scripts]
