@@ -27,5 +27,6 @@ dependencies = [
 ]
 
 # Should add an entry point here for launch !
+[project.scripts]
 launch_gripper = "myur.Gripper_Node:main"
 launch_ur = "myur.launch_ur_control:main"
