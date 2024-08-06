@@ -88,11 +88,13 @@ class MyUR3e(rclpy.node.Node):
         self._executor = MultiThreadedExecutor()
         self._executor.add_node(self)
         self.trajectory_file = "trajectory_file.json"
+        self._trajectories = {}
         try:
             with open(self.trajectory_file, "r") as file:
                 self._trajectories = json.load(file)
-        except (IOError, json.JSONDecodeError) as e:
-            pass
+        except (IOError, json.JSONDecodeError): # except file not found
+            with open(self.trajectory_file, "w") as file: # BUG could this ever wipe the file?
+                json.dump(self._trajectories, file, indent=4)
 
         # Public Attributes
         self.vis = TrajectoryPlanner()
