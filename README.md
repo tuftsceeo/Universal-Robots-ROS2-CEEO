@@ -96,7 +96,7 @@ I am getting the error **"Goal Rejected :("**:
   - Make sure the UR Pendant has the "External Control" program running
   - Check the logs of the UR ROS Driver for error messages.
 
-The UR ROS Driver logs say that the **"scaled trajectory controller is not running"**.
+The UR ROS Driver logs say that the **"Can't accept new action goals. Controller is not running."**.
   - Run the following in a new terminal:
 ```bash
 ros2 control switch_controllers --activate scaled_joint_trajectory_controller
