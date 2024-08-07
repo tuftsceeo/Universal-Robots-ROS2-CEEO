@@ -102,6 +102,9 @@ The UR ROS Driver logs say that the **"scaled trajectory controller is not runni
 ros2 control switch_controllers --activate scaled_joint_trajectory_controller
 ```
 
+My code freezes in a move command:
+  - Check the logs of the UR ROS Driver for error messages.
+
 My goal is executing but nothing happens:
   - Check the logs of the UR ROS Driver for error messages.
 
