@@ -152,7 +152,7 @@ class MyUR3e(rclpy.node.Node):
         """
         self.get_logger().debug(message)
     
-    def set_response_callback(self, user_function):
+    def set_sent_callback(self, user_function):
         """
         Define function to be called when goal is recieved by the action server.
 
@@ -161,7 +161,7 @@ class MyUR3e(rclpy.node.Node):
         """
         self.response_callback = user_function
 
-    def set_result_callback(self, user_function):
+    def set_finished_callback(self, user_function):
         """
         Define function to be called when goal is completed by the action server.
 
