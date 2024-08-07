@@ -371,7 +371,7 @@ class MyUR3e(rclpy.node.Node):
 
         self.save_trajectory(name, trajectory)
 
-        return trajectory
+        #return trajectory # results in trajectory coords printed out unless assigned to var
 
     def solve_ik(self, cords, q_guess=None):
         """
