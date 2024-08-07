@@ -98,6 +98,7 @@ My goal is executing but nothing happens:
 
 My driver log says "state tolerance error":
   - Use MyUR3e.read_joints_pos() to ensure that no joints are wound over 360 degrees.
+  - If they are, freedrive the joint back to a neutral position (closest to zero).
 
 My driver log says "path tolerance error":
   - Try freedriving the robot to a different pose, rebooting your UR driver, or rebooting your hub.
