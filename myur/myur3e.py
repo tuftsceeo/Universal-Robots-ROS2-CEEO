@@ -402,7 +402,7 @@ class MyUR3e(rclpy.node.Node):
             quat = r.as_quat(scalar_first=True).tolist()
             cords = cords[0:3] + quat
 
-        return self.ik_solver.inverse(cords, False, q_guess=q_guess)
+        return self.ik_solver.inverse(cords, False, q_guess=q_guess) # radians
     
     def solve_fk(self, angles, degrees=True, euler=True):
         """
