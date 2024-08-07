@@ -497,11 +497,11 @@ class MyUR3e(rclpy.node.Node):
         joint_positions = []
         for i, cord in enumerate(coordinates):
             if degrees and len(cord) == 6:
-                cord[3:7] = self.convert_angles(cord[3:7],to_degrees=False)
+                cord[3:6] = self.convert_angles(cord[3:6],to_degrees=False)
             if i == 0:
-                joint_positions.append(self.solve_ik(cord))
+                joint_positions.append(self.solve_ik(cord, degrees=False))
             else:
-                joint_positions.append(self.solve_ik(cord, joint_positions[i - 1]))
+                joint_positions.append(self.solve_ik(cord, degrees=False, q_guess=joint_positions[i - 1]))
 
         self.vis.add_trajectory(coordinates, joint_positions)
 
