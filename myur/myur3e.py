@@ -240,6 +240,7 @@ class MyUR3e(rclpy.node.Node):
             except IOError as e:
                 print(f"An error occurred while deleting the file: {e}")
 
+    # Not operational until access to UR dashboard messages is resolved
     def health_scan(self):
         """
         Get the current safety and robot mode.
@@ -266,22 +267,28 @@ class MyUR3e(rclpy.node.Node):
         [position,speed,force] = self.gripper.get()
         return [int(100*position/255),int(100*speed/255),int(100*force/255)]
 
-    def read_joints_pos(self):
+    def read_joints_pos(self,degrees=True):
         """
         Get the angle of each joint in radians.
 
+        Args:
+            degrees (bool): True for degrees, False for radians
         Returns:
             list: [Pan, Lift, Elbow, Wrist 1, Wrist 2, Wrist 3]
         """
+        if degrees: return self.convert_angles(self.joint_states.get_joints()["position"],to_degrees=True)
         return self.joint_states.get_joints()["position"]
 
-    def read_joints_vel(self):
+    def read_joints_vel(self,degrees=True):
         """
         Get the angular velocity of each joint in radians/s.
 
+        Args:
+            degrees (bool): True for degrees, False for radians
         Returns:
             list: [Pan, Lift, Elbow, Wrist 1, Wrist 2, Wrist 3]
         """
+        if degrees: return self.convert_angles(self.joint_states.get_joints()["velocity"],to_degrees=True)
         return self.joint_states.get_joints()["velocity"]
 
     def read_joints_eff(self):
@@ -372,30 +379,52 @@ class MyUR3e(rclpy.node.Node):
 
         #return trajectory # results in trajectory coords printed out unless assigned to var
 
-    def solve_ik(self, cords, q_guess=None):
+    def solve_ik(self, cords, degrees=True, q_guess=None):
         """
         Solve inverse kinematics for given coordinates.
 
         Args:
-            cords (list): A list of coordinates, either [x, y, z, rx, ry, rz] or [x, y, z, qx, qy, qz, qw].
+            cords (list): A list of coordinates, either [x, y, z, rx, ry, rz] or [x, y, z, qw, qx, qy, qz].
+            degrees (bool): True if degrees, False if radians. Blanket application to rx, ry, rz, and q_guess.
             q_guess (list, optional): A list of joint angles used to find the closest IK solution.
         Returns:
             list: Joint positions that achieve the given coordinates. [see self.joints]
         """
-        # Get current pose of robot to use as q_guess if q_guess is None
-        if q_guess is None:
-            q_guess = self.read_joints_pos()
+        if q_guess is None: # Use current robot pose as q_guess
+            q_guess = self.read_joints_pos(degrees=False)
+        elif degrees == True: # Convert given q_guess to radians if needed
+            q_guess = self.convert_angles(q_guess,to_degrees=False)
 
-        # if coordinates in euler format convert to quaternions
+        # If coordinates in euler format convert to quaternions
         if len(cords) == 6:
-            for i,angle in enumerate(cords[3:7]): # deviate zeros to prevent unsolved ik
+            for i,angle in enumerate(cords[3:7]): # Deviate zeros to prevent unsolved ik
                 if angle == 0:
                     cords[i+3] = 0.1
-            r = R.from_euler("zyx", cords[3:6], degrees=True)
+            r = R.from_euler("zyx", cords[3:6], degrees=degrees)
             quat = r.as_quat(scalar_first=True).tolist()
             cords = cords[0:3] + quat
 
         return self.ik_solver.inverse(cords, False, q_guess=q_guess)
+    
+    def solve_fk(self, angles, degrees=True, euler=True):
+        """
+        Solve forward kinematics for given joint positions.
+
+        Args:
+            angles (list): A list of joint angles.
+            degrees (bool): True if degrees, False if radians.
+            euler (bool): True if euler rotation desired, False for quaternion.
+        Returns:
+            list: End effector coordinates resulting from joint angles.
+        """
+        if degrees: angles = self.convert_angles(angles,to_degrees=False)
+
+        coordinate = self.ik_solver.forward(angles)
+
+        if euler: 
+            r = R.from_quat(coordinate[3:8])
+            coordinate = coordinate[0:3] +  list(r.as_euler('zyx',degrees=degrees))
+        return self.ik_solver.forward(angles)
 
     def interpolate(self, trajectory, method="linear", fidelity=100):
         '''
@@ -444,7 +473,7 @@ class MyUR3e(rclpy.node.Node):
         """
         self.gripper.control(int(255*position/100), int(255*speed/100), int(255*force/100), wait)
 
-    def move_global(self, coordinates, time=5, vis_only=False, wait=True, interp=None):
+    def move_global(self, coordinates, time=5, degrees=True, vis_only=False, wait=True, interp=None):
         """
         Move the robot to specified global coordinates.
 
@@ -453,6 +482,7 @@ class MyUR3e(rclpy.node.Node):
                 either [x, y, z, rx, ry, rz] or [x, y, z, qx, qy, qz, qw].
             time (float/tuple, optional): If float, time step between each coordinate. If
                 tuple, first float represents time to first pos, second float is all following steps.
+            degrees (bool): True for degrees, False for radians. Ignore if using quaternions.
             vis_only (bool, optional): True if no motion is desired, False if motion is desired.
             wait (bool, optional): True if blocking is desired, False if non blocking is desired.
             interp (string, optional): Options are None, linear, arc, spline.
@@ -461,12 +491,13 @@ class MyUR3e(rclpy.node.Node):
             coordinates = self.get_trajectory(coordinates)
 
         if interp is not None:
-            if len(coordinates[0]) == 7:
-                raise ValueError("Cannot interpolate quaternion rotations")
+            if len(coordinates[0]) == 7: raise ValueError("Interpolation not currently supported for quaternion rotations")
             coordinates = self.interpolate(coordinates, interp)
 
         joint_positions = []
         for i, cord in enumerate(coordinates):
+            if degrees and len(cord) == 6:
+                cord[3:7] = self.convert_angles(cord[3:7],to_degrees=False)
             if i == 0:
                 joint_positions.append(self.solve_ik(cord))
             else:
@@ -483,7 +514,7 @@ class MyUR3e(rclpy.node.Node):
                 joint_positions, time=time, vis_only=vis_only, wait=wait, interp=None
             )
 
-    def move_global_r(self, pos_deltas, time=5, vis_only=False, wait=True, interp=None):
+    def move_global_r(self, pos_deltas, time=5, degrees=True, vis_only=False, wait=True, interp=None):
         """
         Move the robot relative to where it was using global axes.
 
@@ -492,6 +523,7 @@ class MyUR3e(rclpy.node.Node):
                 either [x, y, z, rx, ry, rz] or [x, y, z, qx, qy, qz, qw].
             time (float/tuple, optional): If float, time step between each coordinate. If
                 tuple, first float represents time to first pos, second float is all following steps.
+            degrees (bool): True for degrees, False for radians. Ignore if using quaternions.
             vis_only (bool, optional): True if no motion is desired, False if motion is desired.
             wait (bool, optional): True if blocking is desired, False if non blocking is desired.
         """
@@ -499,6 +531,8 @@ class MyUR3e(rclpy.node.Node):
 
         sequence = []
         for i, delta in enumerate(pos_deltas):
+            if degrees and len(delta) == 6:
+                delta[3:7] = self.convert_angles(delta[3:7],to_degrees=False)
             if i == 0:
                 curr = self.read_global_pos()
                 sequence.append([sum(x) for x in zip(curr, delta)])
@@ -507,7 +541,7 @@ class MyUR3e(rclpy.node.Node):
         self.move_global(sequence, time=(time/len(pos_deltas),time-time/len(pos_deltas)), vis_only=vis_only, wait=wait, interp=interp)
 
     def move_joints_r(
-        self, joint_deltas, time=5, units="radians", vis_only=False, wait=True, interp=None
+        self, joint_deltas, time=5, degrees=True, vis_only=False, wait=True, interp=None
     ):
         """
         Move the robot relative to where it was using joint angles.
@@ -519,25 +553,22 @@ class MyUR3e(rclpy.node.Node):
             vis_only (bool, optional): True if no motion is desired, False if motion is desired.
             wait (bool, optional): True if blocking is desired, False if non blocking is desired.
         """
-        # BUG: when degrees are used in this feature the arm behaves unexpectedly, needs urgent fixing !!!
-        if units == "degrees": raise ValueError("Degrees not currently supported, please use radians.")
-
         if type(time)==tuple: raise ValueError("Time cannot be a tuple: relative movements do not need time to arrive at first point.")
         
         sequence = []
         for i, delta in enumerate(joint_deltas):
             if i == 0:
-                curr = self.read_joints_pos()
+                curr = self.read_joints_pos(degrees=degrees)
                 sequence.append([sum(x) for x in zip(curr, delta)])
             else:
                 sequence.append([sum(x) for x in zip(sequence[i - 1], delta)])
-        self.move_joints(sequence, time=(time/len(joint_deltas),time-time/len(joint_deltas)), units=units, vis_only=vis_only, wait=wait, interp=interp)
+        self.move_joints(sequence, time=(time/len(joint_deltas),time-time/len(joint_deltas)), degrees=degrees, vis_only=vis_only, wait=wait, interp=interp)
 
     def move_joints(
         self,
         joint_positions,
         time=5,
-        units="radians",
+        degrees=True,
         vis_only=False,
         wait=True,
         interp=None,
@@ -549,19 +580,19 @@ class MyUR3e(rclpy.node.Node):
             joint_positions (list): List of joint positions. [j1,j2,j3,j4,j5,j6].
             time (float/tuple, optional): If float, time step between each coordinate. If
                 tuple, first float represents time to first pos, second float is all following steps.
-            units (string, optional): radians or degrees
+            degrees (bool): True for degrees, False for radians.
             vis_only (bool, optional): True if no motion is desired, False if motion is desired.
             wait (bool, optional): True if blocking is desired, False if non blocking is desired.
             interp (string, optional): Options are None, linear, arc, spline.
         """
-        if type(joint_positions) == str:
+        if type(joint_positions) == str: # Retrieve trajectory from json by name
             joint_positions = self.get_trajectory(joint_positions)
 
-        if interp != None:
+        if interp != None: # interpolate angles
             joint_positions = self.interpolate(joint_positions, interp)
 
         if not vis_only:
-            trajectory = self.make_trajectory(joint_positions, units=units,time=time)
+            trajectory = self.make_trajectory(joint_positions, degrees=degrees,time=time)
             self.execute_trajectory(trajectory)
             if wait:
                 self.wait(self)
@@ -641,14 +672,14 @@ class MyUR3e(rclpy.node.Node):
         self.done = True
 
     def make_trajectory(
-        self, joint_positions, units="radians", time=5, stop=False
+        self, joint_positions, degrees=True, time=5, stop=False
     ):
         """
         Create a trajectory for the robot to follow.
 
         Args:
             joint_positions (list): List of joint positions.
-            units (string, optional): Units for the joint positions, either 'radians' or 'degrees'.
+            degrees (bool): True for degrees, False for radians.
             time (int, optional): Time step between each position.
             stop (bool, optional): if True creates a stop trajectory.
 
@@ -663,10 +694,10 @@ class MyUR3e(rclpy.node.Node):
             for i, position in enumerate(joint_positions):
                 point = JointTrajectoryPoint()
 
-                if units == "radians":
+                if not degrees:
                     point.positions = position
-                elif units == "degrees":
-                    point.positions = self.pointdeg2rad(position)
+                else:
+                    point.positions = self.convert_angles(position,to_degrees=False)
 
 
                 if type(time) != tuple: # robot spends equal time getting to starting pose and executing trajectory
@@ -789,7 +820,7 @@ class MyUR3e(rclpy.node.Node):
     ########################################################
 
     @staticmethod
-    def pointdeg2rad(point):
+    def convert_angles(point,to_degrees):
         """
         Convert a point from degrees to radians.
 
@@ -799,6 +830,7 @@ class MyUR3e(rclpy.node.Node):
         Returns:
             list: List of points in radians.
         """
+        if to_degrees: return [math.degrees(p) for p in point]
         return [math.radians(p) for p in point]
 
     @staticmethod
