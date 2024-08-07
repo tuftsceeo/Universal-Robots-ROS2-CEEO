@@ -104,6 +104,8 @@ class MyUR3e(rclpy.node.Node):
         self.dashboard = Dashboard()
         self.gripper = Gripper()
         self.done = True
+        self.debug = False
+        self.get_logger().set_level(rclpy.logging.LoggingSeverity.DEBUG)
 
         # Set Functions
         self.response_callback = response_callback
@@ -124,6 +126,34 @@ class MyUR3e(rclpy.node.Node):
 
     ########################### CLASS ACCESS METHODS ##########################
 
+    def set_debug_level(self,debug):
+        """
+        Toggle the print debug level.
+
+        Args:
+            debug (bool): True if debug logs are desired, False if not
+        """
+        if debug: self.get_logger().set_level(rclpy.logging.LoggingSeverity.DEBUG)
+        else: self.get_logger().set_level(rclpy.logging.LoggingSeverity.INFO)
+    
+    def print_info(self,message):
+        """
+        Print a message through the ROS INFO logs.
+
+        Args:
+            message (string)
+        """
+        self.get_logger().info(message)
+
+    def print_debug(self,message):
+        """
+        Print a message through the ROS DEBUG logs.
+
+        Args:
+            message (string)
+        """
+        self.get_logger().debug(message)
+    
     def set_response_callback(self, user_function):
         """
         Define function to be called when goal is recieved by the action server.
@@ -360,8 +390,9 @@ class MyUR3e(rclpy.node.Node):
 
         # if coordinates in euler format convert to quaternions
         if len(cords) == 6:
-            if cords[3:6] == [0, 0, 0]:
-                cords[3:6] = [0.1, 0, 0]
+            for i,angle in enumerate(cords[3:7]): # deviate zeros to prevent unsolved ik
+                if angle == 0:
+                    cords[i+3] = 0.1
             r = R.from_euler("zyx", cords[3:6], degrees=True)
             quat = r.as_quat(scalar_first=True).tolist()
             cords = cords[0:3] + quat
