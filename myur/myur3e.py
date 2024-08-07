@@ -104,7 +104,6 @@ class MyUR3e(rclpy.node.Node):
         self.dashboard = Dashboard()
         self.gripper = Gripper()
         self.done = True
-        self.debug = False
 
         # Set Functions
         self.response_callback = response_callback
