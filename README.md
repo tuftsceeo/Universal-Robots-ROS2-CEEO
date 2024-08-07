@@ -80,6 +80,7 @@ def main():
 if __name__ == '__main__':
     main()
 ```
+Go to the In_Depth_Tutorial in the examples folder for a full run down of features.
 
 ## Troubleshooting ##
 
