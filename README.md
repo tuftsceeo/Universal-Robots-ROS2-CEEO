@@ -22,7 +22,7 @@ Clone this repository to your local machine:
 git clone https://github.com/tuftsceeo/Universal-Robots-ROS2-CEEO
 ```
 
-Install the python package and all dependencies:
+Install the myur python package and all dependencies:
 
 ```bash
 cd Universal-Robots-ROS2-CEEO
