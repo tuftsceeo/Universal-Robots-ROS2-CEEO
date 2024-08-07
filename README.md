@@ -37,12 +37,12 @@ source ~/.bashrc
 
 ## Setup
 
-Open a new terminal, launch the ROS2 UR Driver: (leave this running)
+If no one else has done so already, open a new terminal and launch the ROS2 UR Driver: (leave this running)
 ```bash
 launch_ur --ip "130.64.17.5"
 ```
 
-Open a second new terminal, launch the ROS Gripper Node: (leave this running)
+If no one else has done so already, open a second new terminal and launch the ROS Gripper Node: (leave this running)
 ```bash
 launch_gripper --ip "130.64.17.5"
 ```
