@@ -83,17 +83,24 @@ if __name__ == '__main__':
 
 ## Troubleshooting ##
 
-My code freezes when I try to initialize the MyUR3e class:
-  - Make sure that you have launched the UR ROS Driver.
-  
 I am getting the error "Goal Rejected :(":
-  - Check the logs of the UR ROS Driver for error messages
   - Make sure the UR Pendant has the "External Control" program running
-  - Make sure the scaled_joint_trajectory_controller is running. If its not, run the following in an available terminal:
+  - Check the logs of the UR ROS Driver for error messages.
+
+The UR ROS Driver logs say that the scaled trajectory controller is not running.
+  - Run the following in a new terminal:
 ```bash
-ros2 control list_controllers
 ros2 control switch_controllers --activate scaled_joint_trajectory_controller
 ```
 
+My goal is executing but nothing happens:
+  - Check the logs of the UR ROS Driver for error messages.
+
 My driver log says "state tolerance error":
   - Use MyUR3e.read_joints_pos() to ensure that no joints are wound over 360 degrees.
+
+My driver log says "path tolerance error":
+  - Try freedriving the robot to a different pose, rebooting your UR driver, or rebooting your hub.
+
+My driver log says "goal tolerance error":
+  - Try freedriving the robot to a different pose, rebooting your UR driver, or rebooting your hub.
