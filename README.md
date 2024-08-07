@@ -1,8 +1,8 @@
-# MyUR ROS2 Python Control
+# MyUR Python Control
 
 ## Overview
 
-This repository contains Python scripts for controlling the Universal Robots UR3e robotic arm using ROS2. The main component is the **MyUR3e** class, which provides functionalities to interface with the robot arm for tasks such as trajectory planning, gripper control, and accessing live joint states and tool wrench data.
+This repository contains Python scripts for controlling the Universal Robots UR3e robotic arm via ROS2. The main component is the **MyUR3e** class, which provides functionalities to interface with the robot arm for tasks such as trajectory planning, gripper control, and accessing live joint states and tool wrench data.
 
 ## Prerequisites
 
