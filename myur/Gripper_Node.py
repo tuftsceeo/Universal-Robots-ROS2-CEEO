@@ -19,7 +19,7 @@ class Gripper(Node):
         # initialize the topic (name it, create the publisher and publishing rate
         super().__init__("GripperNode")
         print("Initizializing Gripper Node")
-        queue_size = 10
+        self.get_logger().info("Initizializing Gripper Node")
         self.publisher_ = self.create_publisher(Int32MultiArray, "/gripper/state", 10)
         timer_period = 0.001  # seconds
         self.timer = self.create_timer(timer_period, self.timer_callback)
@@ -49,7 +49,9 @@ class Gripper(Node):
 
     def listener_callback(self, msg):
         try:
-            print("RECIEVED CONTROL:",msg.data)
+            info = f"Gripper Node Received Control: {list(msg.data)}"
+            self.get_logger().info(info)
+            print(info)
             [POS, SPE, FOR] = msg.data
             null, self.target = self.gripper.move(POS, SPE, FOR)
         except Exception as e:
@@ -62,11 +64,11 @@ def main():
     parser = argparse.ArgumentParser(description="Start the Gripper Node")
     parser.add_argument('-sc', action='store_true', help='Skip calibration')
     parser.add_argument('--ip', type=str, required=True, help='IP address of the gripper')
-    
+
     args = parser.parse_args()
 
     rclpy.init()
-    
+
     if args.sc:
         print("Skipping calibration...")
         gripper_node = Gripper(args.ip,calibrate=False)

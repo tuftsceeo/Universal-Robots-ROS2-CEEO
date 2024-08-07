@@ -746,15 +746,17 @@ class MyUR3e(rclpy.node.Node):
         goal_handle = future.result()
 
         if curr_id is self._id:
-            # user defined callback
-            if self.response_callback:
-                self.response_callback(goal_handle.accepted, *args, **kwargs)
 
             if not goal_handle.accepted:
                 self.get_logger().info(
                     f"Goal #{self._id} rejected :( (Check driver logs for more info)"
                 )
                 return
+            
+            # user defined callback
+            if self.response_callback:
+                self.response_callback(*args, **kwargs)
+
             self.get_logger().debug(f"Goal #{self._id} accepted :)")
             self._get_result_future = goal_handle.get_result_async()
             this_future = self._get_result_future
@@ -772,14 +774,13 @@ class MyUR3e(rclpy.node.Node):
         result = future.result().result
 
         if curr_id is self._id:
-            # user defined callback
-            if self.result_callback:
-                self.result_callback(result.error_code, *args, **kwargs)
-
             self.get_logger().debug(
                 f"Done with result from #{self._id}: {self.error_code_to_str(result.error_code)}"
             )
             if result.error_code == FollowJointTrajectory.Result.SUCCESSFUL:
+                # user defined callback
+                if self.result_callback:
+                    self.result_callback(*args, **kwargs)
                 self.done = True
                 self.get_logger().info(f"Goal #{self._id}: Completed")
 
