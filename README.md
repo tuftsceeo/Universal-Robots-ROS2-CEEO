@@ -53,6 +53,8 @@ Verify you can interact with the ROS2 topics:
 ros2 topic list
 ```
 
+## Code
+
 Open a Python file or Notebook and start playing with the MyUR3e class!
 ```python
 from myur import MyUR3e
