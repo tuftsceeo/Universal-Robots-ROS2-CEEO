@@ -4,6 +4,15 @@ from std_msgs.msg import Int32MultiArray
 from myur import robotiq_gripper
 import time
 
+import os
+import subprocess
+
+# Update the PATH environment variable
+os.environ["PATH"] = f"{os.path.expanduser('~/.local/bin')}:{os.environ['PATH']}"
+
+# Reload the .bashrc file to ensure the changes take effect
+subprocess.run(['source', os.path.expanduser('~/.bashrc')], shell=True)
+
 class Gripper(Node):
 
     def __init__(self,IP,calibrate=True):
