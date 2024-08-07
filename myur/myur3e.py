@@ -105,7 +105,6 @@ class MyUR3e(rclpy.node.Node):
         self.gripper = Gripper()
         self.done = True
         self.debug = False
-        self.get_logger().set_level(rclpy.logging.LoggingSeverity.DEBUG)
 
         # Set Functions
         self.response_callback = response_callback
