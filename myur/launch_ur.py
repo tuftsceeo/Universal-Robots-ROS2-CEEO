@@ -4,12 +4,6 @@ import subprocess
 import argparse
 import os
 
-# Update the PATH environment variable
-os.environ["PATH"] = f"{os.path.expanduser('~/.local/bin')}:{os.environ['PATH']}"
-
-# Reload the .bashrc file to ensure the changes take effect
-subprocess.run(['source', os.path.expanduser('~/.bashrc')], shell=True)
-
 def main():
     # Set up argument parsing
     parser = argparse.ArgumentParser(description="Launch UR control")
