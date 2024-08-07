@@ -29,6 +29,12 @@ cd Universal-Robots-ROS2-CEEO
 pip install .
 ```
 
+Add the install directory to your shell's PATH list:
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+source ~/.bashrc
+```
+
 ## Setup
 
 Open a new terminal, launch the ROS2 UR Driver: (leave this running)
