@@ -331,7 +331,7 @@ class MyUR3e(rclpy.node.Node):
 
         Args:
             name (string): key of the trajectory
-            sleep(float, optional): interval at which the position will be recorded
+            interval(float, optional): interval at which the position will be recorded
             threshold(int, optional): threshold for movement
         Returns:
             list: recorded trajectory
@@ -439,9 +439,9 @@ class MyUR3e(rclpy.node.Node):
         Move the gripper to the specified position with given speed and force.
 
         Args:
-            POS (int): Position for the gripper.
-            SPE (int): Speed for the gripper.
-            FOR (int): Force for the gripper.
+            position (int): Position for the gripper.
+            speed (int): Speed for the gripper.
+            force (int): Force for the gripper.
         """
         self.gripper.control(int(255*position/100), int(255*speed/100), int(255*force/100), wait)
 
