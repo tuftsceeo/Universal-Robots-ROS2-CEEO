@@ -27,7 +27,7 @@ dependencies = [
 ]
 
 [tool.setuptools.packages.find]
-where = ["myur"]
+where = ["."]
 include = ["myur*", "myur.ik_solver*"]
 
 # Should add an entry point here for launch !
