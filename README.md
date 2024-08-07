@@ -83,11 +83,11 @@ if __name__ == '__main__':
 
 ## Troubleshooting ##
 
-I am getting the error "Goal Rejected :(":
+I am getting the error **"Goal Rejected :("**:
   - Make sure the UR Pendant has the "External Control" program running
   - Check the logs of the UR ROS Driver for error messages.
 
-The UR ROS Driver logs say that the scaled trajectory controller is not running.
+The UR ROS Driver logs say that the **"scaled trajectory controller is not running"**.
   - Run the following in a new terminal:
 ```bash
 ros2 control switch_controllers --activate scaled_joint_trajectory_controller
@@ -96,12 +96,12 @@ ros2 control switch_controllers --activate scaled_joint_trajectory_controller
 My goal is executing but nothing happens:
   - Check the logs of the UR ROS Driver for error messages.
 
-My driver log says "state tolerance error":
-  - Use MyUR3e.read_joints_pos() to ensure that no joints are wound over 360 degrees.
+My driver log says **"state tolerance error"**:
+  - Use read_joints_pos() to ensure that no joints are wound over 360 degrees.
   - If they are, freedrive the joint back to a neutral position (closest to zero).
 
-My driver log says "path tolerance error":
+My driver log says **"path tolerance error"**:
   - Try freedriving the robot to a different pose, rebooting your UR driver, or rebooting your hub.
 
-My driver log says "goal tolerance error":
+My driver log says **"goal tolerance error"**:
   - Try freedriving the robot to a different pose, rebooting your UR driver, or rebooting your hub.
