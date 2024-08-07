@@ -385,15 +385,13 @@ class MyUR3e(rclpy.node.Node):
 
         Args:
             cords (list): A list of coordinates, either [x, y, z, rx, ry, rz] or [x, y, z, qw, qx, qy, qz].
-            degrees (bool): True if degrees, False if radians. Blanket application to rx, ry, rz, and q_guess.
-            q_guess (list, optional): A list of joint angles used to find the closest IK solution.
+            degrees (bool): True if degrees, False if radians. Only applies to rx, ry, rz.
+            q_guess (list, optional): A list of joint angles used to find the closest IK solution in radians.
         Returns:
             list: Joint positions that achieve the given coordinates. [see self.joints]
         """
         if q_guess is None: # Use current robot pose as q_guess
             q_guess = self.read_joints_pos(degrees=False)
-        elif degrees == True: # Convert given q_guess to radians if needed
-            q_guess = self.convert_angles(q_guess,to_degrees=False)
 
         # If coordinates in euler format convert to quaternions
         if len(cords) == 6:
@@ -496,12 +494,10 @@ class MyUR3e(rclpy.node.Node):
 
         joint_positions = []
         for i, cord in enumerate(coordinates):
-            if degrees and len(cord) == 6:
-                cord[3:6] = self.convert_angles(cord[3:6],to_degrees=False)
             if i == 0:
-                joint_positions.append(self.solve_ik(cord, degrees=False))
+                joint_positions.append(self.solve_ik(cord, degrees=degrees))
             else:
-                joint_positions.append(self.solve_ik(cord, degrees=False, q_guess=joint_positions[i - 1]))
+                joint_positions.append(self.solve_ik(cord, degrees=degrees, q_guess=joint_positions[i - 1]))
 
         self.vis.add_trajectory(coordinates, joint_positions)
 
@@ -511,7 +507,7 @@ class MyUR3e(rclpy.node.Node):
             )
         elif vis_only == False:
             self.move_joints(
-                joint_positions, time=time, vis_only=vis_only, wait=wait, interp=None
+                joint_positions, time=time, degrees=False, vis_only=vis_only, wait=wait, interp=None
             )
 
     def move_global_r(self, pos_deltas, time=5, degrees=True, vis_only=False, wait=True, interp=None):
