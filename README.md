@@ -26,7 +26,7 @@ Install the myur python package and all dependencies:
 
 ```bash
 cd Universal-Robots-ROS2-CEEO
-pip install .
+pip install -e .
 ```
 
 Add the install directory to your shell's PATH list:
