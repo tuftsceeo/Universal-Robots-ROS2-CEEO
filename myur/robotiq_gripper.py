@@ -120,6 +120,7 @@ class RobotiqGripper:
             raise ValueError(
                 f"Unexpected response {data} ({data.decode(self.ENCODING)}): does not match '{variable}'"
             )
+        if value_str == '?': raise RuntimeError("Lost connection to the Robotiq Gripper (Check power)") 
         value = int(value_str)
         return value
 

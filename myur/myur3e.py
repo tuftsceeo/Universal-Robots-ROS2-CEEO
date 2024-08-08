@@ -329,7 +329,7 @@ class MyUR3e(rclpy.node.Node):
 
     ############################# MOVEMENT METHODS ############################
 
-    def record(self, name, interval=1, threshold=0.001):
+    def record(self, name, interval=1, threshold=0.05729):
         """
         Record the live motion of the arm using joint angles. Recording automatically starts 
         when the arm moves and stops when the arm is at rest. The trajectory will be saved to
@@ -527,14 +527,12 @@ class MyUR3e(rclpy.node.Node):
 
         sequence = []
         for i, delta in enumerate(pos_deltas):
-            if degrees and len(delta) == 6:
-                delta[3:7] = self.convert_angles(delta[3:7],to_degrees=False)
             if i == 0:
                 curr = self.read_global_pos()
                 sequence.append([sum(x) for x in zip(curr, delta)])
             else:
                 sequence.append([sum(x) for x in zip(sequence[i - 1], delta)])
-        self.move_global(sequence, time=(time/len(pos_deltas),time-time/len(pos_deltas)), vis_only=vis_only, wait=wait, interp=interp)
+        self.move_global(sequence, time=(time/len(pos_deltas),time-time/len(pos_deltas)), degrees=degrees, vis_only=vis_only, wait=wait, interp=interp)
 
     def move_joints_r(
         self, joint_deltas, time=5, degrees=True, vis_only=False, wait=True, interp=None
@@ -696,8 +694,8 @@ class MyUR3e(rclpy.node.Node):
                     point.positions = self.convert_angles(position,to_degrees=False)
 
 
-                if type(time) != tuple: # robot spends equal time getting to starting pose and executing trajectory
-                    if i == 0: arrival = time
+                if type(time) != tuple: # robot spends 5 seconds getting to starting pose and time seconds executing trajectory
+                    if i == 0: arrival = 5
                     else: arrival = time + i * (time/(len(joint_positions)-1))
                 elif type(time) == tuple and time[0] == 0: # robot already in starting pose
                     arrival = (i + 1) * (time[1]/(len(joint_positions)-1))
