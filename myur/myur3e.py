@@ -92,8 +92,10 @@ class MyUR3e(rclpy.node.Node):
         try:
             with open(self.trajectory_file, "r") as file:
                 self._trajectories = json.load(file)
-        except (IOError, json.JSONDecodeError): # except file not found
-            with open(self.trajectory_file, "w") as file: # BUG could this ever wipe the file?
+        except (IOError, json.JSONDecodeError):  # except file not found
+            with open(
+                self.trajectory_file, "w"
+            ) as file:  # BUG could this ever wipe the file?
                 json.dump(self._trajectories, file, indent=4)
 
         # Public Attributes
@@ -124,17 +126,19 @@ class MyUR3e(rclpy.node.Node):
 
     ########################### CLASS ACCESS METHODS ##########################
 
-    def set_debug_level(self,debug):
+    def set_debug_level(self, debug):
         """
         Toggle the print debug level.
 
         Args:
             debug (bool): True if debug logs are desired, False if not
         """
-        if debug: self.get_logger().set_level(rclpy.logging.LoggingSeverity.DEBUG)
-        else: self.get_logger().set_level(rclpy.logging.LoggingSeverity.INFO)
-    
-    def print_info(self,message):
+        if debug:
+            self.get_logger().set_level(rclpy.logging.LoggingSeverity.DEBUG)
+        else:
+            self.get_logger().set_level(rclpy.logging.LoggingSeverity.INFO)
+
+    def print_info(self, message):
         """
         Print a message through the ROS INFO logs.
 
@@ -143,7 +147,7 @@ class MyUR3e(rclpy.node.Node):
         """
         self.get_logger().info(message)
 
-    def print_debug(self,message):
+    def print_debug(self, message):
         """
         Print a message through the ROS DEBUG logs.
 
@@ -151,7 +155,7 @@ class MyUR3e(rclpy.node.Node):
             message (string)
         """
         self.get_logger().debug(message)
-    
+
     def set_sent_callback(self, user_function):
         """
         Define function to be called when goal is recieved by the action server.
@@ -189,7 +193,7 @@ class MyUR3e(rclpy.node.Node):
         """
         self.vis.clear_plot()
 
-    def save_trajectory(self, name, trajectory,units=None,system=None):
+    def save_trajectory(self, name, trajectory, units=None, system=None):
         """
         Adds a trajectory to the collection and saves it to the local JSON file.
 
@@ -197,9 +201,11 @@ class MyUR3e(rclpy.node.Node):
             name (string): name that will be key of the stored coordinates.
             trajectory (list): coordinates making the trajectory
         """
-        self._trajectories[name] = {"trajectory":trajectory,
-                                    "units":units,
-                                    "system":system}
+        self._trajectories[name] = {
+            "trajectory": trajectory,
+            "units": units,
+            "system": system,
+        }
 
         try:
             with open(self.trajectory_file, "w") as file:
@@ -225,7 +231,8 @@ class MyUR3e(rclpy.node.Node):
 
         trajectory = self._trajectories.get(name)
 
-        if trajectory is None: raise ValueError(f"No trajectory found with the name: {name}")
+        if trajectory is None:
+            raise ValueError(f"No trajectory found with the name: {name}")
 
         return trajectory["trajectory"]
 
@@ -249,7 +256,7 @@ class MyUR3e(rclpy.node.Node):
             list: [Healthy (bool),Safety Mode (str), Robot Mode (str)]
         """
         health = self.dashboard.get()
-        if health[0] != 1 or health[1] not in [5,7]: 
+        if health[0] != 1 or health[1] not in [5, 7]:
             health = self.error_code_to_str(health)
             self.get_logger().info(f"System Error: {health[0]} and {health[1]}")
             return False
@@ -264,10 +271,14 @@ class MyUR3e(rclpy.node.Node):
         Returns:
             list: [POS (int), SPE (int), FOR (int)]
         """
-        [position,speed,force] = self.gripper.get()
-        return [int(100*position/255),int(100*speed/255),int(100*force/255)]
+        [position, speed, force] = self.gripper.get()
+        return [
+            int(100 * position / 255),
+            int(100 * speed / 255),
+            int(100 * force / 255),
+        ]
 
-    def read_joints_pos(self,degrees=True):
+    def read_joints_pos(self, degrees=True):
         """
         Get the angle of each joint in radians.
 
@@ -276,10 +287,13 @@ class MyUR3e(rclpy.node.Node):
         Returns:
             list: [Pan, Lift, Elbow, Wrist 1, Wrist 2, Wrist 3]
         """
-        if degrees: return self.convert_angles(self.joint_states.get_joints()["position"],to_degrees=True)
+        if degrees:
+            return self.convert_angles(
+                self.joint_states.get_joints()["position"], to_degrees=True
+            )
         return self.joint_states.get_joints()["position"]
 
-    def read_joints_vel(self,degrees=True):
+    def read_joints_vel(self, degrees=True):
         """
         Get the angular velocity of each joint in radians/s.
 
@@ -288,7 +302,10 @@ class MyUR3e(rclpy.node.Node):
         Returns:
             list: [Pan, Lift, Elbow, Wrist 1, Wrist 2, Wrist 3]
         """
-        if degrees: return self.convert_angles(self.joint_states.get_joints()["velocity"],to_degrees=True)
+        if degrees:
+            return self.convert_angles(
+                self.joint_states.get_joints()["velocity"], to_degrees=True
+            )
         return self.joint_states.get_joints()["velocity"]
 
     def read_joints_eff(self):
@@ -307,7 +324,9 @@ class MyUR3e(rclpy.node.Node):
         Returns:
             list: [x,y,z,rx,ry,rz]
         """
-        return self.solve_fk(self.joint_states.get_joints()['position'],degrees=False,euler=True)
+        return self.solve_fk(
+            self.joint_states.get_joints()["position"], degrees=False, euler=True
+        )
 
     def read_force(self):
         """
@@ -331,7 +350,7 @@ class MyUR3e(rclpy.node.Node):
 
     def record(self, name, interval=1, threshold=0.05729):
         """
-        Record the live motion of the arm using joint angles. Recording automatically starts 
+        Record the live motion of the arm using joint angles. Recording automatically starts
         when the arm moves and stops when the arm is at rest. The trajectory will be saved to
         the trajectory dictionary using the supplied name.
 
@@ -341,11 +360,11 @@ class MyUR3e(rclpy.node.Node):
             threshold(int, optional): threshold for movement
         Returns:
             list: recorded trajectory
-            
+
         """
 
         # IDEA: taking data points once every period can result in very close physical points, especially at the
-        # end of the trajectory. This is a problem when using cubic splines. instead could take high frequency data 
+        # end of the trajectory. This is a problem when using cubic splines. instead could take high frequency data
         # and find evenly evenly divided datapoints by physical distance?
 
         start = False
@@ -377,7 +396,7 @@ class MyUR3e(rclpy.node.Node):
 
         self.save_trajectory(name, trajectory)
 
-        #return trajectory # results in trajectory coords printed out unless assigned to var
+        # return trajectory # results in trajectory coords printed out unless assigned to var
 
     def solve_ik(self, cords, degrees=True, q_guess=None, out_degrees=True):
         """
@@ -390,21 +409,28 @@ class MyUR3e(rclpy.node.Node):
         Returns:
             list: Joint positions that achieve the given coordinates. [see self.joints]
         """
-        if q_guess is None: # Use current robot pose as q_guess
+        if q_guess is None:  # Use current robot pose as q_guess
             q_guess = self.read_joints_pos(degrees=False)
 
         # If coordinates in euler format convert to quaternions
         if len(cords) == 6:
-            for i,angle in enumerate(cords[3:7]): # Deviate zeros to prevent unsolved ik
+            for i, angle in enumerate(
+                cords[3:7]
+            ):  # Deviate zeros to prevent unsolved ik
                 if angle == 0:
-                    cords[i+3] = 0.1
+                    cords[i + 3] = 0.1
             r = R.from_euler("zyx", cords[3:6], degrees=degrees)
             quat = r.as_quat(scalar_first=True).tolist()
             cords = cords[0:3] + quat
 
-        if out_degrees: return self.convert_angles(self.ik_solver.inverse(cords, False, q_guess=q_guess),to_degrees=True)
-        return self.ik_solver.inverse(cords, False, q_guess=q_guess) # output is radians
-    
+        if out_degrees:
+            return self.convert_angles(
+                self.ik_solver.inverse(cords, False, q_guess=q_guess), to_degrees=True
+            )
+        return self.ik_solver.inverse(
+            cords, False, q_guess=q_guess
+        )  # output is radians
+
     def solve_fk(self, angles, degrees=True, euler=True):
         """
         Solve forward kinematics for given joint positions.
@@ -416,7 +442,8 @@ class MyUR3e(rclpy.node.Node):
         Returns:
             list: End effector coordinates resulting from joint angles.
         """
-        if degrees: angles = self.convert_angles(angles,to_degrees=False)
+        if degrees:
+            angles = self.convert_angles(angles, to_degrees=False)
 
         cords_q = self.ik_solver.forward(angles)
         if euler:
@@ -429,7 +456,7 @@ class MyUR3e(rclpy.node.Node):
         return cords
 
     def interpolate(self, trajectory, method="linear", fidelity=100):
-        '''
+        """
         Interpolate between points in a trajectory.
 
         Args:
@@ -438,7 +465,7 @@ class MyUR3e(rclpy.node.Node):
             fidelity (int, optional): number of desired points across the trajectory
         Returns:
             list: interpolated trajectory
-        '''
+        """
         if method == "spline":
             k = 3
         elif method == "arc":
@@ -473,9 +500,16 @@ class MyUR3e(rclpy.node.Node):
             speed (int): Speed for the gripper.
             force (int): Force for the gripper.
         """
-        self.gripper.control(int(255*position/100), int(255*speed/100), int(255*force/100), wait)
+        self.gripper.control(
+            int(255 * position / 100),
+            int(255 * speed / 100),
+            int(255 * force / 100),
+            wait,
+        )
 
-    def move_global(self, coordinates, time=5, degrees=True, vis_only=False, wait=True, interp=None):
+    def move_global(
+        self, coordinates, time=5, degrees=True, vis_only=False, wait=True, interp=None
+    ):
         """
         Move the robot to specified global coordinates.
 
@@ -489,21 +523,33 @@ class MyUR3e(rclpy.node.Node):
             wait (bool, optional): True if blocking is desired, False if non blocking is desired.
             interp (string, optional): Options are None, linear, arc, spline.
         """
-        if type(coordinates) == str: # Retrieve trajectory from json by name
+        if type(coordinates) == str:  # Retrieve trajectory from json by name
             coordinates = self.get_trajectory(coordinates)
-        elif type(coordinates[0]) != list: # Format single point
+        elif type(coordinates[0]) != list:  # Format single point
             coordinates = [coordinates]
 
         if interp is not None:
-            if len(coordinates[0]) == 7: raise ValueError("Interpolation not currently supported for quaternion rotations")
+            if len(coordinates[0]) == 7:
+                raise ValueError(
+                    "Interpolation not currently supported for quaternion rotations"
+                )
             coordinates = self.interpolate(coordinates, interp)
 
         joint_positions = []
         for i, cord in enumerate(coordinates):
             if i == 0:
-                joint_positions.append(self.solve_ik(cord, degrees=degrees, out_degrees=False))
+                joint_positions.append(
+                    self.solve_ik(cord, degrees=degrees, out_degrees=False)
+                )
             else:
-                joint_positions.append(self.solve_ik(cord, degrees=degrees, out_degrees=False, q_guess=joint_positions[i - 1]))
+                joint_positions.append(
+                    self.solve_ik(
+                        cord,
+                        degrees=degrees,
+                        out_degrees=False,
+                        q_guess=joint_positions[i - 1],
+                    )
+                )
 
         self.vis.add_trajectory(coordinates, joint_positions)
 
@@ -513,10 +559,17 @@ class MyUR3e(rclpy.node.Node):
             )
         elif vis_only == False:
             self.move_joints(
-                joint_positions, time=time, degrees=False, vis_only=vis_only, wait=wait, interp=None
+                joint_positions,
+                time=time,
+                degrees=False,
+                vis_only=vis_only,
+                wait=wait,
+                interp=None,
             )
 
-    def move_global_r(self, pos_deltas, time=5, degrees=True, vis_only=False, wait=True, interp=None):
+    def move_global_r(
+        self, pos_deltas, time=5, degrees=True, vis_only=False, wait=True, interp=None
+    ):
         """
         Move the robot relative to where it was using global axes.
 
@@ -529,11 +582,14 @@ class MyUR3e(rclpy.node.Node):
             vis_only (bool, optional): True if no motion is desired, False if motion is desired.
             wait (bool, optional): True if blocking is desired, False if non blocking is desired.
         """
-        if type(time)==tuple: raise ValueError("Time cannot be a tuple: relative movements do not need time to arrive at first point.")
+        if type(time) == tuple:
+            raise ValueError(
+                "Time cannot be a tuple: relative movements do not need time to arrive at first point."
+            )
 
-        if type(pos_deltas) == str: # Retrieve trajectory from json by name
+        if type(pos_deltas) == str:  # Retrieve trajectory from json by name
             pos_deltas = self.get_trajectory(pos_deltas)
-        elif type(pos_deltas[0]) != list: # Format single point
+        elif type(pos_deltas[0]) != list:  # Format single point
             pos_deltas = [pos_deltas]
 
         sequence = []
@@ -543,7 +599,14 @@ class MyUR3e(rclpy.node.Node):
                 sequence.append([sum(x) for x in zip(curr, delta)])
             else:
                 sequence.append([sum(x) for x in zip(sequence[i - 1], delta)])
-        self.move_global(sequence, time=(time/len(pos_deltas),time-time/len(pos_deltas)), degrees=degrees, vis_only=vis_only, wait=wait, interp=interp)
+        self.move_global(
+            sequence,
+            time=(time / len(pos_deltas), time - time / len(pos_deltas)),
+            degrees=degrees,
+            vis_only=vis_only,
+            wait=wait,
+            interp=interp,
+        )
 
     def move_joints_r(
         self, joint_deltas, time=5, degrees=True, vis_only=False, wait=True, interp=None
@@ -558,13 +621,16 @@ class MyUR3e(rclpy.node.Node):
             vis_only (bool, optional): True if no motion is desired, False if motion is desired.
             wait (bool, optional): True if blocking is desired, False if non blocking is desired.
         """
-        if type(time)==tuple: raise ValueError("Time cannot be a tuple: relative movements do not need time to arrive at first point.")
+        if type(time) == tuple:
+            raise ValueError(
+                "Time cannot be a tuple: relative movements do not need time to arrive at first point."
+            )
 
-        if type(joint_deltas) == str: # Retrieve trajectory from json by name
+        if type(joint_deltas) == str:  # Retrieve trajectory from json by name
             joint_deltas = self.get_trajectory(joint_deltas)
-        elif type(joint_deltas[0]) != list: # Format single point
+        elif type(joint_deltas[0]) != list:  # Format single point
             joint_deltas = [joint_deltas]
-        
+
         sequence = []
         for i, delta in enumerate(joint_deltas):
             if i == 0:
@@ -572,7 +638,14 @@ class MyUR3e(rclpy.node.Node):
                 sequence.append([sum(x) for x in zip(curr, delta)])
             else:
                 sequence.append([sum(x) for x in zip(sequence[i - 1], delta)])
-        self.move_joints(sequence, time=(time/len(joint_deltas),time-time/len(joint_deltas)), degrees=degrees, vis_only=vis_only, wait=wait, interp=interp)
+        self.move_joints(
+            sequence,
+            time=(time / len(joint_deltas), time - time / len(joint_deltas)),
+            degrees=degrees,
+            vis_only=vis_only,
+            wait=wait,
+            interp=interp,
+        )
 
     def move_joints(
         self,
@@ -595,23 +668,25 @@ class MyUR3e(rclpy.node.Node):
             wait (bool, optional): True if blocking is desired, False if non blocking is desired.
             interp (string, optional): Options are None, linear, arc, spline.
         """
-        if type(joint_positions) == str: # Retrieve trajectory from json by name
+        if type(time) == tuple:
+            if time[0] == 'cv': raise ValueError("Constant velocity time control only applicable to move_global()")
+        if type(joint_positions) == str:  # Retrieve trajectory from json by name
             joint_positions = self.get_trajectory(joint_positions)
-        elif type(joint_positions[0]) != list: # Format single point
+        elif type(joint_positions[0]) != list:  # Format single point
             joint_positions = [joint_positions]
 
-        if interp != None: # interpolate angles
+        if interp != None:  # interpolate angles
             joint_positions = self.interpolate(joint_positions, interp)
 
         if not vis_only:
-            trajectory = self.make_trajectory(joint_positions, degrees=degrees,time=time)
+            trajectory = self.make_trajectory(
+                joint_positions, degrees=degrees, time=time
+            )
             self.execute_trajectory(trajectory)
             if wait:
                 self.wait(self)
             else:
-                spinthread = threading.Thread(
-                    target=lambda: self.spin_async(self._id)
-                )
+                spinthread = threading.Thread(target=lambda: self.spin_async(self._id))
                 spinthread.start()
 
     def stop(self):
@@ -636,6 +711,7 @@ class MyUR3e(rclpy.node.Node):
         Args:
             curr_id (int): ID number representing unique goals.
         """
+
         def check_id():
             if curr_id is not self._id:
                 self.get_logger().info(
@@ -648,23 +724,27 @@ class MyUR3e(rclpy.node.Node):
         if check_id():
             return
         while self._send_goal_future is None:  # screen None
-            if not self.health_scan(): return
+            if not self.health_scan():
+                return
             self._executor.spin_once()
             if check_id():
                 return
         while not self._send_goal_future.done():  # check done
-            if not self.health_scan(): return
+            if not self.health_scan():
+                return
             self._executor.spin_once()
             if check_id():
                 return
         if self._send_goal_future.result().accepted:
             while self._get_result_future is None:  # screen None
-                if not self.health_scan(): return
+                if not self.health_scan():
+                    return
                 self._executor.spin_once()
                 if check_id():
                     return
             while not self._get_result_future.done():  # check done
-                if not self.health_scan(): return
+                if not self.health_scan():
+                    return
                 self._executor.spin_once()
                 if check_id():
                     return
@@ -683,9 +763,7 @@ class MyUR3e(rclpy.node.Node):
         self._get_result_future = None
         self.done = True
 
-    def make_trajectory(
-        self, joint_positions, degrees=True, time=5, stop=False
-    ):
+    def make_trajectory(self, joint_positions, degrees=True, time=5, stop=False):
         """
         Create a trajectory for the robot to follow.
 
@@ -703,24 +781,45 @@ class MyUR3e(rclpy.node.Node):
 
         if not stop:
             self._id += 1
+
+            last_arrival = 0
             for i, position in enumerate(joint_positions):
                 point = JointTrajectoryPoint()
 
                 if not degrees:
                     point.positions = position
                 else:
-                    point.positions = self.convert_angles(position,to_degrees=False)
+                    point.positions = self.convert_angles(position, to_degrees=False)
 
+                if (
+                    type(time) != tuple
+                ):  # robot spends 5 seconds getting to starting pose and time seconds executing trajectory
+                    if i == 0:
+                        arrival = 5
+                    else:
+                        arrival = time + i * (time / (len(joint_positions) - 1))
+                elif (
+                    type(time) == tuple and time[0] == "cv"
+                ):  # move end effector at constant velocity
+                    if i == 0:
+                        arrival = time[1]
+                    else:
+                        dist = np.linalg.norm(
+                            np.array(joint_positions[i][0:3])
+                            - np.array(joint_positions[i - 1][0:3])
+                        )
+                        arrival = last_arrival + dist / time[2]
+                elif (
+                    type(time) == tuple and time[0] == 0
+                ):  # robot already in starting pose
+                    arrival = (i + 1) * (time[1] / (len(joint_positions) - 1))
+                elif type(time) == tuple:  # robot needs time to get to starting pose
+                    if i == 0:
+                        arrival = time[0]
+                    else:
+                        arrival = time[0] + i * (time[1] / (len(joint_positions) - 1))
 
-                if type(time) != tuple: # robot spends 5 seconds getting to starting pose and time seconds executing trajectory
-                    if i == 0: arrival = 5
-                    else: arrival = time + i * (time/(len(joint_positions)-1))
-                elif type(time) == tuple and time[0] == 0: # robot already in starting pose
-                    arrival = (i + 1) * (time[1]/(len(joint_positions)-1))
-                elif type(time) == tuple: # robot needs time to get to starting pose
-                    if i == 0: arrival = time[0]
-                    else: arrival = time[0] + i * (time[1]/(len(joint_positions)-1))
-
+                last_arrival = arrival
                 sec = int(arrival - (arrival % 1))
                 nanosec = int(arrival % 1 * 1000000000)
                 point.time_from_start = Duration(sec=sec, nanosec=nanosec)
@@ -765,7 +864,8 @@ class MyUR3e(rclpy.node.Node):
         """
         self._executor.spin_once()
         while not client.done:
-            if not self.health_scan(): return
+            if not self.health_scan():
+                return
             self._executor.spin_once()
 
     ################################ CALLBACKS ################################
@@ -795,7 +895,7 @@ class MyUR3e(rclpy.node.Node):
                     f"Goal #{self._id} rejected :( (Check driver logs for more info)"
                 )
                 return
-            
+
             # user defined callback
             if self.response_callback:
                 self.response_callback(*args, **kwargs)
@@ -832,7 +932,7 @@ class MyUR3e(rclpy.node.Node):
     ########################################################
 
     @staticmethod
-    def convert_angles(point,to_degrees):
+    def convert_angles(point, to_degrees):
         """
         Convert a point from degrees to radians.
 
@@ -842,7 +942,8 @@ class MyUR3e(rclpy.node.Node):
         Returns:
             list: List of points in radians.
         """
-        if to_degrees: return [math.degrees(p) for p in point]
+        if to_degrees:
+            return [math.degrees(p) for p in point]
         return [math.radians(p) for p in point]
 
     @staticmethod
@@ -869,30 +970,53 @@ class MyUR3e(rclpy.node.Node):
         if error_code == FollowJointTrajectory.Result.GOAL_TOLERANCE_VIOLATED:
             return "GOAL_TOLERANCE_VIOLATED"
         elif type(error_code) == list:
-            if error_code[0] == 1: safety_mode = "NORMAL"
-            elif error_code[0] == 2: safety_mode = "REDUCED"
-            elif error_code[0] == 3: safety_mode = "PROTECTIVE_STOP"
-            elif error_code[0] == 4: safety_mode = "RECOVERY"
-            elif error_code[0] == 5: safety_mode = "SAFEGUARD_STOP"
-            elif error_code[0] == 6: safety_mode = "SYSTEM_EMERGENCY_STOP"
-            elif error_code[0] == 7: safety_mode = "ROBOT_EMERGENCY_STOP"
-            elif error_code[0] == 8: safety_mode = "VIOLATION"
-            elif error_code[0] == 9: safety_mode = "FAULT"
-            elif error_code[0] == 10: safety_mode = "VALIDATE_JOINT_ID"
-            elif error_code[0] == 11: safety_mode = "UNDEFINED_SAFETY_MODE"
-            elif error_code[0] == 12: safety_mode = "AUTOMATIC_MODE_SAFEGUARD_STOP"
-            elif error_code[0] == 13: safety_mode = "SYSTEM_THREE_POSITION_ENABLING_STOP"
-            if error_code[1] == -1: robot_mode = "NO_CONTROLLER"
-            elif error_code[1] == 0: robot_mode = "DISCONNECTED"
-            elif error_code[1] == 1: robot_mode = "CONFIRM_SAFETY"
-            elif error_code[1] == 2: robot_mode = "BOOTING"
-            elif error_code[1] == 3: robot_mode = "POWER_OFF"
-            elif error_code[1] == 4: robot_mode = "POWER_ON"
-            elif error_code[1] == 5: robot_mode = "IDLE"
-            elif error_code[1] == 6: robot_mode = "BACKDRIVE"
-            elif error_code[1] == 7: robot_mode = "RUNNING"
-            elif error_code[1] == 8: robot_mode = "UPDATING_FIRMWARE"
-            return [safety_mode,robot_mode]
+            if error_code[0] == 1:
+                safety_mode = "NORMAL"
+            elif error_code[0] == 2:
+                safety_mode = "REDUCED"
+            elif error_code[0] == 3:
+                safety_mode = "PROTECTIVE_STOP"
+            elif error_code[0] == 4:
+                safety_mode = "RECOVERY"
+            elif error_code[0] == 5:
+                safety_mode = "SAFEGUARD_STOP"
+            elif error_code[0] == 6:
+                safety_mode = "SYSTEM_EMERGENCY_STOP"
+            elif error_code[0] == 7:
+                safety_mode = "ROBOT_EMERGENCY_STOP"
+            elif error_code[0] == 8:
+                safety_mode = "VIOLATION"
+            elif error_code[0] == 9:
+                safety_mode = "FAULT"
+            elif error_code[0] == 10:
+                safety_mode = "VALIDATE_JOINT_ID"
+            elif error_code[0] == 11:
+                safety_mode = "UNDEFINED_SAFETY_MODE"
+            elif error_code[0] == 12:
+                safety_mode = "AUTOMATIC_MODE_SAFEGUARD_STOP"
+            elif error_code[0] == 13:
+                safety_mode = "SYSTEM_THREE_POSITION_ENABLING_STOP"
+            if error_code[1] == -1:
+                robot_mode = "NO_CONTROLLER"
+            elif error_code[1] == 0:
+                robot_mode = "DISCONNECTED"
+            elif error_code[1] == 1:
+                robot_mode = "CONFIRM_SAFETY"
+            elif error_code[1] == 2:
+                robot_mode = "BOOTING"
+            elif error_code[1] == 3:
+                robot_mode = "POWER_OFF"
+            elif error_code[1] == 4:
+                robot_mode = "POWER_ON"
+            elif error_code[1] == 5:
+                robot_mode = "IDLE"
+            elif error_code[1] == 6:
+                robot_mode = "BACKDRIVE"
+            elif error_code[1] == 7:
+                robot_mode = "RUNNING"
+            elif error_code[1] == 8:
+                robot_mode = "UPDATING_FIRMWARE"
+            return [safety_mode, robot_mode]
 
 
 class JointStates(rclpy.node.Node):
@@ -1106,6 +1230,7 @@ class Gripper(rclpy.node.Node):
 from ur_dashboard_msgs.msg import RobotMode
 from ur_dashboard_msgs.msg import SafetyMode
 
+
 class Dashboard(rclpy.node.Node):
     """
     Subscribe and publish to Gripper topics.
@@ -1130,7 +1255,7 @@ class Dashboard(rclpy.node.Node):
             10,
         )
 
-        self.timer = self.create_timer(.25, self.timer_callback)
+        self.timer = self.create_timer(0.25, self.timer_callback)
 
         self.states = []
         self.safety_done = False
@@ -1166,7 +1291,7 @@ class Dashboard(rclpy.node.Node):
         Returns:
             list: The current safety and robot mode of the UR arm.
         """
-        return [1,7] # temporary fix for BUG
+        return [1, 7]  # temporary fix for BUG
         self.wait()
         self.safety_done = False
         self.robot_done = False
