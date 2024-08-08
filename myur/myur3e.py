@@ -307,7 +307,7 @@ class MyUR3e(rclpy.node.Node):
         Returns:
             list: [x,y,z,rx,ry,rz]
         """
-        return self.joint_states.get_global()
+        return self.solve_fk(self.joint_states.get_joints()['position'],degrees=False,euler=True)
 
     def read_force(self):
         """
@@ -418,12 +418,15 @@ class MyUR3e(rclpy.node.Node):
         """
         if degrees: angles = self.convert_angles(angles,to_degrees=False)
 
-        coordinate = self.ik_solver.forward(angles)
+        cords_q = self.ik_solver.forward(angles)
+        if euler:
+            r = R.from_quat(cords_q[3:7], scalar_first=True)
+            euler = r.as_euler("zyx", degrees=degrees).tolist()
+            cords = cords_q[0:3].tolist() + euler
+        else:
+            cords = cords_q
 
-        if euler: 
-            r = R.from_quat(coordinate[3:8])
-            coordinate = coordinate[0:3] +  list(r.as_euler('zyx',degrees=degrees))
-        return coordinate # output is [x,y,z,qw,qx,qy,qz]
+        return cords
 
     def interpolate(self, trajectory, method="linear", fidelity=100):
         '''
@@ -936,21 +939,6 @@ class JointStates(rclpy.node.Node):
         self.wait(self)
         self.done = False
         return self.states
-
-    def get_global(self):
-        """
-        Get the global position of the end effector.
-
-        Returns:
-            list: The global position and orientation in Euler angles.
-        """
-        self.wait(self)
-        self.done = False
-        cords_q = self.ik_solver.forward(self.states["position"])
-        r = R.from_quat(cords_q[3:7], scalar_first=True)
-        euler = r.as_euler("zyx", degrees=True).tolist()
-        cords = cords_q[0:3].tolist() + euler
-        return cords
 
     def wait(self, client):
         """
