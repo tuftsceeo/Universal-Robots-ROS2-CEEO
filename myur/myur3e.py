@@ -379,7 +379,7 @@ class MyUR3e(rclpy.node.Node):
 
         #return trajectory # results in trajectory coords printed out unless assigned to var
 
-    def solve_ik(self, cords, degrees=True, q_guess=None):
+    def solve_ik(self, cords, degrees=True, q_guess=None, out_degrees=True):
         """
         Solve inverse kinematics for given coordinates.
 
@@ -402,7 +402,8 @@ class MyUR3e(rclpy.node.Node):
             quat = r.as_quat(scalar_first=True).tolist()
             cords = cords[0:3] + quat
 
-        return self.ik_solver.inverse(cords, False, q_guess=q_guess) # radians
+        if out_degrees: return self.convert_angles(self.ik_solver.inverse(cords, False, q_guess=q_guess),to_degrees=True)
+        return self.ik_solver.inverse(cords, False, q_guess=q_guess) # output is radians
     
     def solve_fk(self, angles, degrees=True, euler=True):
         """
@@ -422,7 +423,7 @@ class MyUR3e(rclpy.node.Node):
         if euler: 
             r = R.from_quat(coordinate[3:8])
             coordinate = coordinate[0:3] +  list(r.as_euler('zyx',degrees=degrees))
-        return self.ik_solver.forward(angles)
+        return coordinate # output is [x,y,z,qw,qx,qy,qz]
 
     def interpolate(self, trajectory, method="linear", fidelity=100):
         '''
@@ -485,8 +486,10 @@ class MyUR3e(rclpy.node.Node):
             wait (bool, optional): True if blocking is desired, False if non blocking is desired.
             interp (string, optional): Options are None, linear, arc, spline.
         """
-        if type(coordinates) == str:
+        if type(coordinates) == str: # Retrieve trajectory from json by name
             coordinates = self.get_trajectory(coordinates)
+        elif type(coordinates[0]) != list: # Format single point
+            coordinates = [coordinates]
 
         if interp is not None:
             if len(coordinates[0]) == 7: raise ValueError("Interpolation not currently supported for quaternion rotations")
@@ -495,9 +498,9 @@ class MyUR3e(rclpy.node.Node):
         joint_positions = []
         for i, cord in enumerate(coordinates):
             if i == 0:
-                joint_positions.append(self.solve_ik(cord, degrees=degrees))
+                joint_positions.append(self.solve_ik(cord, degrees=degrees, out_degrees=False))
             else:
-                joint_positions.append(self.solve_ik(cord, degrees=degrees, q_guess=joint_positions[i - 1]))
+                joint_positions.append(self.solve_ik(cord, degrees=degrees, out_degrees=False, q_guess=joint_positions[i - 1]))
 
         self.vis.add_trajectory(coordinates, joint_positions)
 
@@ -525,6 +528,11 @@ class MyUR3e(rclpy.node.Node):
         """
         if type(time)==tuple: raise ValueError("Time cannot be a tuple: relative movements do not need time to arrive at first point.")
 
+        if type(pos_deltas) == str: # Retrieve trajectory from json by name
+            pos_deltas = self.get_trajectory(pos_deltas)
+        elif type(pos_deltas[0]) != list: # Format single point
+            pos_deltas = [pos_deltas]
+
         sequence = []
         for i, delta in enumerate(pos_deltas):
             if i == 0:
@@ -548,6 +556,11 @@ class MyUR3e(rclpy.node.Node):
             wait (bool, optional): True if blocking is desired, False if non blocking is desired.
         """
         if type(time)==tuple: raise ValueError("Time cannot be a tuple: relative movements do not need time to arrive at first point.")
+
+        if type(joint_deltas) == str: # Retrieve trajectory from json by name
+            joint_deltas = self.get_trajectory(joint_deltas)
+        elif type(joint_deltas[0]) != list: # Format single point
+            joint_deltas = [joint_deltas]
         
         sequence = []
         for i, delta in enumerate(joint_deltas):
@@ -581,6 +594,8 @@ class MyUR3e(rclpy.node.Node):
         """
         if type(joint_positions) == str: # Retrieve trajectory from json by name
             joint_positions = self.get_trajectory(joint_positions)
+        elif type(joint_positions[0]) != list: # Format single point
+            joint_positions = [joint_positions]
 
         if interp != None: # interpolate angles
             joint_positions = self.interpolate(joint_positions, interp)
