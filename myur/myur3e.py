@@ -317,7 +317,7 @@ class MyUR3e(rclpy.node.Node):
         """
         return self.joint_states.get_joints()["effort"]
 
-    def read_global_pos(self):
+    def read_global_pos(self,degrees=True):
         """
         Get the global position of end effector in meters.
 
@@ -325,7 +325,7 @@ class MyUR3e(rclpy.node.Node):
             list: [x,y,z,rx,ry,rz]
         """
         return self.solve_fk(
-            self.joint_states.get_joints()["position"], degrees=False, euler=True
+            self.read_joints_pos(degrees=degrees), degrees=degrees, euler=True
         )
 
     def read_force(self):
@@ -455,14 +455,14 @@ class MyUR3e(rclpy.node.Node):
 
         return cords
 
-    def interpolate(self, trajectory, method="linear", fidelity=100):
+    def interpolate(self, trajectory, method="linear",fidelity=50):
         """
         Interpolate between points in a trajectory.
 
         Args:
             trajectory (list): trajectory to be interpolated
             method (string, optional): either linear, arc, or spline
-            fidelity (int, optional): number of desired points across the trajectory
+            fidelity (int, optional): number of interpolated points between each set point
         Returns:
             list: interpolated trajectory
         """
@@ -483,11 +483,13 @@ class MyUR3e(rclpy.node.Node):
             spline = make_interp_spline(arc_length, points, k=k)  # k=3 for cubic spline
         except ValueError:
             if method == "spline":
-                raise ValueError("Spline requires four or more trajectory points")
+                raise ValueError("Spline interpolation requires four or more trajectory points")
             elif method == "arc":
-                raise ValueError("Arc requires 3 or more trajectory points")
+                raise ValueError("Arc interpolation requires 3 or more trajectory points")
+            elif method == "linear":
+                raise ValueError("Linear interpolation requires two or more trajectory points")
         # Define a new arc_length range for a smooth trajectory
-        arc_length_new = np.linspace(arc_length.min(), arc_length.max(), fidelity)
+        arc_length_new = np.linspace(arc_length.min(), arc_length.max(), (len(trajectory)-1)*fidelity)
         # Evaluate the spline for the new arc_length range
         return spline(arc_length_new).tolist()
 
@@ -801,12 +803,28 @@ class MyUR3e(rclpy.node.Node):
                 elif (
                     type(time) == tuple and time[0] == "cv"
                 ):  # move end effector at constant velocity
-                    if i == 0:
-                        arrival = time[1]
-                    else:
+                    if i == 0: # time to start of trajectory
                         dist = np.linalg.norm(
-                            np.array(joint_positions[i][0:3])
-                            - np.array(joint_positions[i - 1][0:3])
+                            np.array(
+                                self.solve_fk(joint_positions[i], degrees=False)[0:3]
+                            )
+                            - np.array(
+                                self.solve_fk(
+                                    self.read_joints_pos(degrees=False), degrees=False
+                                )[0:3]
+                            )
+                        )
+                        arrival = last_arrival + dist / time[1]
+                    else: # time during trajectory
+                        dist = np.linalg.norm(
+                            np.array(
+                                self.solve_fk(joint_positions[i], degrees=False)[0:3]
+                            )
+                            - np.array(
+                                self.solve_fk(joint_positions[i - 1], degrees=False)[
+                                    0:3
+                                ]
+                            )
                         )
                         arrival = last_arrival + dist / time[2]
                 elif (
