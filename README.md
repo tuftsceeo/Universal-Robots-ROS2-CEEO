@@ -75,7 +75,7 @@ def main():
         robot.move_gripper(100) # Close
 
         # Create a point or trajectory
-        point = [[0.5, 0.5, 0.3, 0.0, 0.0, 0.0]] # [x,y,z,rx,ry,rz]
+        point = [0.5, 0.5, 0.3, 0.0, 0.0, 0.0] # [x,y,z,rx,ry,rz]
         trajectory = [[0.5, 0.5, 0.3, 0.0, 0.0, 0.0],
                       [0.4, 0.4, 0.3, 0.0, 0.0, 0.0]]
 
