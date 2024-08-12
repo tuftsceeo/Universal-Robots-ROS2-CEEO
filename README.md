@@ -111,7 +111,7 @@ My goal is executing but nothing happens:
   - Check the logs of the UR ROS Driver for error messages.
 
 My driver log says **"state tolerance error"**:
-  - Use read_joints_pos() to ensure that no joints are wound over 360 degrees.
+  - Use read_joints_pos() or the Teach Pendant to ensure that no joints are wound over 360 degrees.
   - If they are, freedrive the joint back to a neutral position (closest to zero).
 
 My driver log says **"path tolerance error"**:
