@@ -37,7 +37,7 @@ source ~/.bashrc
 
 ## Setup
 
-Make sure that the UR robot is turned on and active using the UR Teach Pendant. Go to [this page](https://github.com/tuftsceeo/Universal-Robots-ROS2-CEEO/blob/c876587ff6f01c4d1c4790a0cce25435f029a33d/URTP.md) for help.
+Before setting up the robot, check your work area. Make sure that nothing is obstructing the path of the UR arm and that all persons are clear of its reach. It is good practice to alert anybody nearby that you are enabling the robot. To begin the setup process, active the UR arm using the UR Teach Pendant. Go to [this page](https://github.com/tuftsceeo/Universal-Robots-ROS2-CEEO/blob/main/URTP.md) for help. Once the arm is activated, follow these steps to establish external control.
 
 If no one else has done so already, open a new terminal and launch the ROS2 UR Driver: (leave this running)
 ```bash
