@@ -2,7 +2,7 @@
 
 ## Overview
 
-This repository contains Python scripts for controlling the Universal Robots UR3e robotic arm via ROS2. The main component is the **MyUR3e** class, which provides functionalities to interface with the robot arm for tasks such as trajectory planning, gripper control, and accessing live joint states and tool wrench data.
+This repository contains Python scripts for controlling the Universal Robots UR3e robotic arm via ROS2. The main component is the **MyUR3e** class, which provides functionalities to interface with the robot arm for tasks such as trajectory planning, gripper control, and accessing live joint states and force sensor data. Check out [our Notion page](https://fetlab.notion.site/UR3e-Robot-Arm-16afcd0dec6648f0b090a2a0807abf8c?pvs=4) to learn more about this project.
 
 ## Prerequisites
 
