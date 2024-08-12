@@ -37,6 +37,8 @@ source ~/.bashrc
 
 ## Setup
 
+Make sure that the UR robot is turned on and active using the UR Teach Pendant. Go to [this page](https://github.com/tuftsceeo/Universal-Robots-ROS2-CEEO/blob/c876587ff6f01c4d1c4790a0cce25435f029a33d/URTP.md) for help.
+
 If no one else has done so already, open a new terminal and launch the ROS2 UR Driver: (leave this running)
 ```bash
 launch_ur --ip "130.64.17.5"
