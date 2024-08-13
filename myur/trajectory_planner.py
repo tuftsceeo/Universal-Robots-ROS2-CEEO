@@ -26,9 +26,11 @@ class TrajectoryPlanner:
         """
         Add a trajectory to the planner.
 
-        :param coordinates: A list of [x, y, z, rx, ry, rz] coordinates.
-                            The first three are global positions of the end effector.
-                            The last three are Euler rotations (in radians) about each axis.
+        Args:
+        coordinates (list): List of global coordinates. Used for 
+                            highlighting end effector point.
+        joint_positions (list): List of joint positions, used as an indicator of
+                            failed inverse kinematics.
         """
         self.num_traj += 1
         
@@ -40,6 +42,7 @@ class TrajectoryPlanner:
         y = [pos[1] for pos in positions]
         z = [pos[2] for pos in positions]
 
+        # Change marker color and size to large red if inverse kinematics failed.
         marker_colors = ['red' if joint is None else self.colors[self.num_traj % len(self.colors)] for joint in joint_positions]
         marker_size = [12 if joint is None else 6 for joint in joint_positions]
 
@@ -68,9 +71,11 @@ class TrajectoryPlanner:
         """
         Create orientation vector traces.
 
-        :param positions: List of [x, y, z] positions.
-        :param euler_angles: List of [rx, ry, rz] Euler angles (in radians).
-        :return: List of orientation vector traces.
+        Args:
+            positions: List of [x, y, z] positions.
+            euler_angles: List of [rx, ry, rz] Euler angles (in radians).
+        Return:
+            return: List of orientation vector traces.
         """
         orientation_traces = []
         for i,(pos, euler) in enumerate(zip(positions, euler_angles)):
@@ -149,24 +154,3 @@ class TrajectoryPlanner:
         """
         self.trajectories = []
         self.update_plot()
-
-# Example usage:
-if __name__ == "__main__":
-    planner = TrajectoryPlanner()
-
-    # Add trajectories (example coordinates)
-    coordinates1 = [
-        [0, 0, 0, 0, 0, 0], [0.1, 0.1, 0.1, 0, 0, np.pi/4], [0.2, 0.2, 0.2, 0, np.pi/4, 0]
-    ]
-    planner.add_trajectory(coordinates1)
-
-    coordinates2 = [
-        [0.3, 0.3, 0.3, np.pi/4, 0, 0], [0.4, 0.4, 0.4, 0, np.pi/2, 0], [0.5, 0.5, 0.5, np.pi/2, 0, 0]
-    ]
-    planner.add_trajectory(coordinates2)
-
-    # Toggle orientation vectors visibility (example)
-    planner.toggle_orientation_vectors()
-
-    # Clear the plot (example)
-    # planner.clear_plot()
