@@ -34,3 +34,4 @@ include = ["myur*", "myur.ik_solver*"]
 [project.scripts]
 launch_gripper = "myur.Gripper_Node:main"
 launch_ur = "myur.launch_ur:main"
+create_mqtt_forwarder = "myur.mqtt_forwarder:main"
