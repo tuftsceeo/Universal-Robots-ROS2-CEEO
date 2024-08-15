@@ -9,6 +9,7 @@ class MqttToRos2Node(Node):
         super().__init__("mqtt_to_ros2_node")
 
         # ROS2 Publisher
+        self.ros2_topic = ros2_topic
         self.publisher_ = self.create_publisher(String, ros2_topic, 10)
 
         # MQTT Client
@@ -40,7 +41,7 @@ class MqttToRos2Node(Node):
             ros2_msg.data = msg.payload.decode("utf-8")
             self.publisher_.publish(ros2_msg)
             self.get_logger().info(
-                f"Forwarded MQTT message to ROS2 topic: {ros2_msg.data}"
+                f"Forwarded MQTT message to ROS2 topic {self.ros2_topic}: {ros2_msg.data}"
             )
         except Exception as e:
             self.get_logger().error(f"Error processing message: {str(e)}")

@@ -670,8 +670,7 @@ class MyUR3e(rclpy.node.Node):
             wait (bool, optional): True if blocking is desired, False if non blocking is desired.
             interp (string, optional): Options are None, linear, arc, spline.
         """
-        if type(time) == tuple:
-            if time[0] == 'cv': raise ValueError("Constant velocity time control only applicable to move_global()")
+        
         if type(joint_positions) == str:  # Retrieve trajectory from json by name
             joint_positions = self.get_trajectory(joint_positions)
         elif type(joint_positions[0]) != list:  # Format single point
