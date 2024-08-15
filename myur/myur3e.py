@@ -792,38 +792,22 @@ class MyUR3e(rclpy.node.Node):
                 else:
                     point.positions = self.convert_angles(position, to_degrees=False)
 
-                if (
-                    type(time) != tuple
-                ):  # robot spends 5 seconds getting to starting pose and time seconds executing trajectory
+                if (type(time) != tuple):  # robot spends 5 seconds getting to starting pose and time seconds executing trajectory
                     if i == 0:
                         arrival = 5
                     else:
-                        arrival = time + i * (time / (len(joint_positions) - 1))
-                elif (
-                    type(time) == tuple and time[0] == "cv"
-                ):  # move end effector at constant velocity
+                        arrival = 5 + i * (time / (len(joint_positions) - 1))
+                elif (type(time) == tuple and time[0] == "cv"):  # move end effector at constant velocity
                     if i == 0: # time to start of trajectory
                         dist = np.linalg.norm(
-                            np.array(
-                                self.solve_fk(joint_positions[i], degrees=False)[0:3]
-                            )
-                            - np.array(
-                                self.solve_fk(
-                                    self.read_joints_pos(degrees=False), degrees=False
-                                )[0:3]
-                            )
+                            np.array(self.solve_fk(joint_positions[i], degrees=False)[0:3])
+                            - np.array(self.solve_fk(self.read_joints_pos(degrees=False), degrees=False)[0:3])
                         )
                         arrival = last_arrival + dist / time[1]
                     else: # time during trajectory
                         dist = np.linalg.norm(
-                            np.array(
-                                self.solve_fk(joint_positions[i], degrees=False)[0:3]
-                            )
-                            - np.array(
-                                self.solve_fk(joint_positions[i - 1], degrees=False)[
-                                    0:3
-                                ]
-                            )
+                            np.array(self.solve_fk(joint_positions[i], degrees=False)[0:3])
+                            - np.array(self.solve_fk(joint_positions[i - 1], degrees=False)[0:3])
                         )
                         arrival = last_arrival + dist / time[2]
                 elif (
@@ -836,6 +820,7 @@ class MyUR3e(rclpy.node.Node):
                     else:
                         arrival = time[0] + i * (time[1] / (len(joint_positions) - 1))
 
+                if last_arrival == arrival: arrival += 0.01
                 last_arrival = arrival
                 sec = int(arrival - (arrival % 1))
                 nanosec = int(arrival % 1 * 1000000000)
