@@ -1030,7 +1030,7 @@ class JointStates(rclpy.node.Node):
         """
         Initialize the JointStates node.
         """
-        super().__init__("SubscriberNode")
+        super().__init__("joint_state_subscriber")
         self.subscription = self.create_subscription(
             JointState, "joint_states", self.listener_callback, 10
         )
