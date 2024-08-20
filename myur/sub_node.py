@@ -12,7 +12,7 @@ class Sub_Node(rclpy.node.Node):
         """
         super().__init__("subscriber_node")
         self.subscription = self.create_subscription(String, topic, self.listener_callback, 10)
-        self.message = None
+        self.data = None
         self.done = False
 
     def listener_callback(self, msg):
@@ -34,7 +34,7 @@ class Sub_Node(rclpy.node.Node):
         """
         self.wait(self)
         self.done = False
-        return self.states
+        return self.data
 
     def wait(self, client):
         """

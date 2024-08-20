@@ -584,10 +584,18 @@ class MyUR3e(rclpy.node.Node):
             vis_only (bool, optional): True if no motion is desired, False if motion is desired.
             wait (bool, optional): True if blocking is desired, False if non blocking is desired.
         """
-        if type(time) == tuple:
+        if type(time) == tuple and time[0] != 'cv':
             raise ValueError(
-                "Time cannot be a tuple: relative movements do not need time to arrive at first point."
+                "Time cannot be a standard tuple: relative movements do not need time to arrive at first point."
             )
+        elif type(time) == tuple and len(time) == 3:
+            raise ValueError(
+                "Relative movements do not need time to arrive at first point. Use time=('cv',vel)"
+            )
+        elif type(time) == tuple and len(time) == 2:
+            time = (time[0],time[1],time[1])
+        else:
+            time=(time / len(pos_deltas), time - time / len(pos_deltas))
 
         if type(pos_deltas) == str:  # Retrieve trajectory from json by name
             pos_deltas = self.get_trajectory(pos_deltas)
@@ -603,7 +611,7 @@ class MyUR3e(rclpy.node.Node):
                 sequence.append([sum(x) for x in zip(sequence[i - 1], delta)])
         self.move_global(
             sequence,
-            time=(time / len(pos_deltas), time - time / len(pos_deltas)),
+            time=time,
             degrees=degrees,
             vis_only=vis_only,
             wait=wait,
