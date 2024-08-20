@@ -56,7 +56,7 @@ ros2 topic list
 ```
 
 If you would like to interface a microcontroller or locally run PC program with the Jupyter Hub / ROS, you can do so by creating a MQTT forwarder and using the provided Sub_Node.
-```
+```bash
 create_mqtt_forwarder -t "topic"
 ```
 
