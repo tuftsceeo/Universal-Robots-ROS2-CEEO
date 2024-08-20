@@ -21,7 +21,7 @@ class MqttToRos2Node(Node):
         self.mqtt_client.on_message = self.on_message
 
         # Connect to the MQTT Broker
-        self.mqtt_client.connect("10.247.137.36", 1884, 60)
+        self.mqtt_client.connect("130.64.16.222", 1884, 60)
 
         # Start the MQTT client loop
         self.mqtt_client.loop_start()
