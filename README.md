@@ -55,6 +55,11 @@ Verify you can interact with the ROS2 topics:
 ros2 topic list
 ```
 
+If you would like to interface a microcontroller or locally run PC program with the Jupyter Hub / ROS, you can do so by creating a MQTT forwarder and using the provided Sub_Node.
+```
+create_mqtt_forwarder -t "topic"
+```
+
 ## Code
 
 Open a Python file or Notebook and start playing with the MyUR3e class!
