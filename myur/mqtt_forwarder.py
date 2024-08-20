@@ -5,7 +5,7 @@ import paho.mqtt.client as mqtt
 
 
 class MqttToRos2Node(Node):
-    def __init__(self, mqtt_topic, ros2_topic):
+    def __init__(self, mqtt_topic, ros2_topic, host, port):
         super().__init__("mqtt_to_ros2_node")
 
         # ROS2 Publisher
@@ -21,7 +21,7 @@ class MqttToRos2Node(Node):
         self.mqtt_client.on_message = self.on_message
 
         # Connect to the MQTT Broker
-        self.mqtt_client.connect("130.64.16.222", 1884, 60)
+        self.mqtt_client.connect(host, port, 60)
 
         # Start the MQTT client loop
         self.mqtt_client.loop_start()
@@ -53,6 +53,8 @@ def main():
     # Set up argument parsing
     parser = argparse.ArgumentParser(description="Create an MQTT forwarder.")
     parser.add_argument("-t", type=str, required=True, help="MQTT topic name")
+    parser.add_argument("-h", type=str, required=True, help="MQTT broker host")
+    parser.add_argument("-p", type=str, required=True, help="MQTT broker port")
     args = parser.parse_args()
 
     rclpy.init()
@@ -60,7 +62,7 @@ def main():
     mqtt_topic = args.t
     ros2_topic = "mqtt/"+mqtt_topic
 
-    node = MqttToRos2Node(mqtt_topic, ros2_topic)
+    node = MqttToRos2Node(mqtt_topic, ros2_topic, args.h, args.p)
 
     try:
         rclpy.spin(node)
