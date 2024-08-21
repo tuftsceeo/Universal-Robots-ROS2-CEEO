@@ -116,10 +116,6 @@ class MyUR3e(rclpy.node.Node):
         # De-init rclpy
         rclpy.shutdown()
 
-        # One last write to trajectory file to be safe
-        with open(self.trajectory_file, "w") as file:
-            json.dump(self._trajectories, file, indent=4)
-
     ###########################################################################
     ############################# PUBLIC METHODS ##############################
     ###########################################################################
