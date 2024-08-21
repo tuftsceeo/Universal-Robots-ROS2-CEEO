@@ -4,12 +4,33 @@ Each Universal Robot model is accompanied by a Teach Pendant; a touch screen dis
 ## Starting the Robot
 1. Press the white power button to turn on the Teach Pendant.
 2. Click on the red circle in the lower left hand corner of the screen.
+<div style="display: flex; align-items: center;">
+    <img src="examples/img/step1.png" alt="Image 1" style="width:300px;"/>
+</div>
 3. Click "start" to give power to the robot.
+<div style="display: flex; align-items: center;">
+    <img src="examples/img/step2.png" alt="Image 1" style="width:300px;"/>
+</div>
 4. Click "activate" to release the joint locks and enable the robot's motion.
+<div style="display: flex; align-items: center;">
+    <img src="examples/img/step3.png" alt="Image 1" style="width:300px;"/>
+</div>
 5. Click "Exit" to return back to the home screen.
+<div style="display: flex; align-items: center;">
+    <img src="examples/img/step4.png" alt="Image 1" style="width:300px;"/>
+</div>
 6. Click "select program."
+<div style="display: flex; align-items: center;">
+    <img src="examples/img/step5.png" alt="Image 1" style="width:300px;"/>
+</div>
 7. Select the "external control" program and then click "open."
+<div style="display: flex; align-items: center;">
+    <img src="examples/img/step6.png" alt="Image 1" style="width:300px;"/>
+</div>
 8. Click the big blue play button to run the program.
+<div style="display: flex; align-items: center;">
+    <img src="examples/img/step7.png" alt="Image 1" style="width:300px;"/>
+</div>
 
 ## Monitoring the Robot
 While the robot arm is in use, the Teach Pendant should be in an easily accessed location. If you need to stop the robot while it is in motion, you can either:
