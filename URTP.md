@@ -7,11 +7,11 @@ Each Universal Robot model is accompanied by a Teach Pendant; a touch screen dis
 <div style="display: flex; align-items: center;">
     <img src="examples/img/step1.png" alt="Image 1" style="width:300px;"/>
 </div>
-3. Click "start" to give power to the robot.
+3. Click "ON" to give power to the robot.
 <div style="display: flex; align-items: center;">
     <img src="examples/img/step2.png" alt="Image 1" style="width:300px;"/>
 </div>
-4. Click "activate" to release the joint locks and enable the robot's motion.
+4. Click "START" to release the joint locks and enable the robot's motion.
 <div style="display: flex; align-items: center;">
     <img src="examples/img/step3.png" alt="Image 1" style="width:300px;"/>
 </div>
@@ -19,11 +19,11 @@ Each Universal Robot model is accompanied by a Teach Pendant; a touch screen dis
 <div style="display: flex; align-items: center;">
     <img src="examples/img/step4.png" alt="Image 1" style="width:300px;"/>
 </div>
-6. Click "select program."
+6. Click "Load Program."
 <div style="display: flex; align-items: center;">
     <img src="examples/img/step5.png" alt="Image 1" style="width:300px;"/>
 </div>
-7. Select the "external control" program and then click "open."
+7. Select the "external control.urp" program and then click "Open."
 <div style="display: flex; align-items: center;">
     <img src="examples/img/step6.png" alt="Image 1" style="width:300px;"/>
 </div>
@@ -47,3 +47,7 @@ Freedrive is a useful tool to manually reposition the robot arm or record a traj
 1. Click the blue pause button to pause external control.
 2. Press and hold the black tactile button the the back front of the Teach Pendant.
 3. Or, navigate to the "Move" page on the Teach Pendant and click and hold the "Freedrive" button.
+<div style="display: flex; align-items: center;">
+    <img src="examples/img/step9.png" alt="Image 1" style="width:300px;"/>
+    <img src="examples/img/step10.png" alt="Image 1" style="width:300px;"/>
+</div>
