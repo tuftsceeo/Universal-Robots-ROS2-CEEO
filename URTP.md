@@ -27,7 +27,7 @@ Each Universal Robot model is accompanied by a Teach Pendant; a touch screen dis
 <div style="display: flex; align-items: center;">
     <img src="examples/img/step6.png" alt="Image 1" style="width:300px;"/>
 </div>
-8. Click the big blue play button to run the program.
+8. Click the big blue play button to run the program once your driver is running.
 <div style="display: flex; align-items: center;">
     <img src="examples/img/step7.png" alt="Image 1" style="width:300px;"/>
 </div>
