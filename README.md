@@ -94,7 +94,7 @@ robot.move_global(trajectory)
 ```
 Go to the [In_Depth_Tutorial](https://github.com/tuftsceeo/Universal-Robots-ROS2-CEEO/blob/6d0b88f86543e63ce5a9f9999cb61271c0f339b7/examples/In_Depth_Tutorial.ipynb) in the examples folder for a full run down of features.
 
-## Troubleshooting ##
+## Troubleshooting
 
 I am getting the error **"Goal Rejected :("**:
   - Make sure the UR Pendant has the "External Control" program running
