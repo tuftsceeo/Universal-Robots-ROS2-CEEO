@@ -64,36 +64,33 @@ create_mqtt_forwarder -h "130.63.16.222" -p "1884" -t "topic"
 
 Open a Python file or Notebook and start playing with the MyUR3e class!
 ```python
+# Import MyUR3e class
 from myur import MyUR3e
 
-def main():
-    try:
-        # Create MyUR3e instance
-        robot = MyUR3e()
+# Create MyUR3e instance
+robot = MyUR3e()
 
-        # Get live data from the robot
-        print(robot.read_joints_pos()) # Joint Positions
-        print(robot.read_global_pos()) # Global End Effector Position
-        print(robot.read_force()) # End Effector Force
-        print(robot.read_gripper()) # Gripper Position, Speed, Force
+# Get live data from the robot
+print(robot.read_joints_pos()) # Joint Positions
+print(robot.read_global_pos()) # Global End Effector Position
+print(robot.read_force()) # End Effector Force
+print(robot.read_gripper()) # Gripper Position, Speed, Force
 
-        # Open and close the gripper
-        robot.move_gripper(0) # Open
-        robot.move_gripper(100) # Close
+# Close the gripper
+robot.move_gripper(100) # 100 = Close, 0 = Open
 
-        # Create a point or trajectory
-        point = [0.5, 0.5, 0.3, 0.0, 0.0, 0.0] # [x,y,z,rx,ry,rz]
-        trajectory = [[0.5, 0.5, 0.3, 0.0, 0.0, 0.0],
-                      [0.4, 0.4, 0.3, 0.0, 0.0, 0.0]]
+# Create a point
+point = [0.5, 0.5, 0.3, 0.0, 0.0, 0.0] # [x,y,z,rx,ry,rz]
 
-        # Move the Arm:
-        robot.move_global(trajectory)
+# Move the arm to the point:
+robot.move_global(point)
 
-    finally:
-        del robot
+# Create a trajectory
+trajectory = [[0.5, 0.5, 0.3, 0.0, 0.0, 0.0],
+              [0.4, 0.4, 0.3, 0.0, 0.0, 0.0]]
 
-if __name__ == '__main__':
-    main()
+# Move the arm along the trajectory:
+robot.move_global(trajectory)
 ```
 Go to the [In_Depth_Tutorial](https://github.com/tuftsceeo/Universal-Robots-ROS2-CEEO/blob/6d0b88f86543e63ce5a9f9999cb61271c0f339b7/examples/In_Depth_Tutorial.ipynb) in the examples folder for a full run down of features.
 
