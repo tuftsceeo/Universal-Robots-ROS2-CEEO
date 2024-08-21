@@ -60,12 +60,15 @@ def main():
 
     rclpy.init()
 
-    if args.sc:
-        print("Skipping calibration...")
-        gripper_node = Gripper(args.ip,calibrate=False)
-    else:
-        print("Performing calibration...")
-        gripper_node = Gripper(args.ip,calibrate=True)
+    try:
+        if args.sc:
+            print("Skipping calibration...")
+            gripper_node = Gripper(args.ip,calibrate=False)
+        else:
+            print("Performing calibration...")
+            gripper_node = Gripper(args.ip,calibrate=True)
+    except Exception as e:
+        print("Gripper node failed: Check that robot power is on.")
 
     print("Gripper Node started")
     rclpy.spin(gripper_node)  # The code stays here forever
