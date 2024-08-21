@@ -37,13 +37,16 @@ While the robot arm is in use, the Teach Pendant should be in an easily accessed
 1. Press the big red E-Stop button on the Teach Pendant. This will stop power to the robot arm, and require you to start up the robot again.
 2. Press the pause button at the center of the program page on the Teach Pendant or at the bottom right hand corner of every other page.
 <div style="display: flex; align-items: center;">
-    <img src="examples/img/step12.png" alt="Image 1" style="width:300px;"/>
     <img src="examples/img/step11.png" alt="Image 1" style="width:300px;"/>
+    <img src="examples/img/step12.png" alt="Image 1" style="width:300px;"/>
 </div>
 
 If an error shows up on the Teach Pendant, for example "Protective Stop," follow these steps to return to operating the robot.
 1. Ensure that your control program has stopped running. Use Ctrl ^C to force quit a frozen process.
 2. Click "Enable Robot" on the Teach Pendant
+<div style="display: flex; align-items: center;">
+    <img src="examples/img/step13.png" alt="Image 1" style="width:300px;"/>
+</div>
 3. Click the blue play button to resume external control.
 <div style="display: flex; align-items: center;">
     <img src="examples/img/step7.png" alt="Image 1" style="width:300px;"/>
