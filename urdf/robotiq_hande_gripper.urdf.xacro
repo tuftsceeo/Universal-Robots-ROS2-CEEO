@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro"
+       name="robotiq_hande_gripper" >
+
+
+  
+  <xacro:include filename="$(find universal_robots_ros2_ceeo)/urdf/robotiq_hande_gripper.xacro" />
+
+  
+  <xacro:robotiq_hande_gripper name="RobotiqGripperHardwareInterface" prefix="gripper" parent="ur3e_tool0" use_fake_hardware="false">
+    <origin xyz="0 0 0" rpy="0 0 0" />
+  </xacro:robotiq_hande_gripper> 
+</robot>
