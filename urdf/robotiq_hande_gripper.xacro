@@ -17,10 +17,8 @@
         prefix
         parent
         *origin
-        sim_ignition:=false
         sim_isaac:=false
         use_fake_hardware:=false
-        fake_sensor_commands:=false
         include_ros2_control:=true
         com_port:=/dev/ttyUSB0">
 
@@ -30,10 +28,8 @@
     <xacro:if value="${include_ros2_control}">
     <xacro:robotiq_gripper_ros2_control
         name="${name}" prefix="${prefix}"
-        sim_ignition="${sim_ignition}"
         sim_isaac="${sim_isaac}"
         use_fake_hardware="${use_fake_hardware}"
-        fake_sensor_commands="${fake_sensor_commands}"
         com_port="${com_port}"/>
     </xacro:if>
 

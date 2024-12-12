@@ -4,7 +4,7 @@
 
 
   
-  <xacro:include filename="$(find universal_robots_ros2_ceeo)/urdf/robotiq_hande_gripper.xacro" />
+  <xacro:include filename="$(find ceeorobot_description)/urdf/robotiq_hande_gripper.xacro" />
 
   
   <xacro:robotiq_hande_gripper name="RobotiqGripperHardwareInterface" prefix="gripper" parent="ur3e_tool0" use_fake_hardware="false">
